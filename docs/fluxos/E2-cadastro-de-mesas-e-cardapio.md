@@ -21,10 +21,17 @@ sequenceDiagram
     participant Backend
     participant Banco
 
-    Admin->>Frontend: preenche dados do produto ou mesa
-    Frontend->>Backend: CT4 cadastrarProduto / CT5 cadastrarMesa
+    Admin->>Frontend: preenche dados do produto
+    Frontend->>Backend: CT4 cadastrarProduto
     Backend->>Backend: valida campos e duplicidade
-    Backend->>Banco: CT6 tb_produto / tb_mesa (INSERT)
-    Banco-->>Backend: registro salvo
-    Backend-->>Frontend: resposta de confirmação
-    Frontend-->>Admin: exibe item cadastrado na lista
+    Backend->>Banco: CT6 tb_mesa
+    Banco-->>Backend: produto salvo
+    Backend-->>Frontend: confirmação do produto
+
+    Admin->>Frontend: preenche dados da mesa
+    Frontend->>Backend: CT5 cadastrarMesa
+    Backend->>Backend: valida número e capacidade
+    Backend->>Banco: CT6 tb_mesa
+    Banco-->>Backend: mesa salva
+    Backend-->>Frontend: confirmação da mesa
+    Frontend-->>Admin: exibe item ou mesa cadastrada na lista
