@@ -1,6 +1,6 @@
-import { login } from './core/api.js';
-import { salvarSessao, areaInicial } from './core/auth.js';
-import { mensagemDeErro } from './core/ui.js';
+import { login } from './api.js';
+import { salvarSessao, areaInicial } from './auth.js';
+import { mensagemDeErro } from './ui.js';
 
 const form = document.getElementById('form-login');
 const alerta = document.getElementById('alerta');
