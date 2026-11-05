@@ -23,7 +23,7 @@ export function login(codigo, senha) {
     });
 }
 
-export async function cadastrarUsuario(usuario) {
+async function requisitarAutenticado(caminho, opcoes = {}) {
     const sessao = lerSessao();
     if (!sessao?.token) {
         sair();
@@ -34,13 +34,12 @@ export async function cadastrarUsuario(usuario) {
     }
 
     try {
-        return await requisitarJson('/usuarios', {
-            method: 'POST',
+        return await requisitarJson(caminho, {
+            ...opcoes,
             headers: {
-                'Content-Type': 'application/json',
+                ...opcoes.headers,
                 Authorization: `Bearer ${sessao.token}`,
             },
-            body: JSON.stringify(usuario),
         });
     } catch (erro) {
         if (erro.status === 401 && ['TOKEN_AUSENTE', 'TOKEN_INVALIDO'].includes(erro.codigo)) {
@@ -48,4 +47,24 @@ export async function cadastrarUsuario(usuario) {
         }
         throw erro;
     }
+}
+
+export function cadastrarUsuario(usuario) {
+    return requisitarAutenticado('/usuarios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(usuario),
+    });
+}
+
+export function cadastrarProduto(produto) {
+    return requisitarAutenticado('/produtos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(produto),
+    });
+}
+
+export function obterCardapio() {
+    return requisitarAutenticado('/cardapio', { method: 'GET' });
 }
