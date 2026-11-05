@@ -84,3 +84,14 @@ export function obterIngredientes() {
 export function obterMapaMesas() {
     return requisitarAutenticado('/mesas/mapa', { method: 'GET' });
 }
+
+export function processarPagamento(mesaId, { pagamentos, desconto } = {}) {
+    const corpo = { pagamentos };
+    if (desconto !== undefined) corpo.desconto = desconto;
+
+    return requisitarAutenticado(`/mesas/${encodeURIComponent(mesaId)}/pagamento/processar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpo),
+    });
+}

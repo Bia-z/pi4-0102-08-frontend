@@ -23,13 +23,37 @@
             <button type="button" id="atualizar-mesas" class="btn btn-outline-primary btn-sm">Atualizar mesas</button>
         </div>
         <div id="mapa-mesas" class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3" aria-live="polite"></div>
+        <p id="status-mesas-tempo-real" class="small text-secondary mt-3" role="status" aria-live="polite"></p>
     </section>
 </main>
 
+<script type="importmap">
+    {
+        "imports": {
+            "@stomp/stompjs": "https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.1.1/esm6/index.js"
+        }
+    }
+</script>
 <script type="module">
     import { iniciarPagina } from '/assets/js/core/guard.js';
-    import { inicializarMapaMesas } from '/assets/js/core/mapa-mesas.js';
-    if (iniciarPagina('caixa')) inicializarMapaMesas();
+    import { carregarMapaMesas, inicializarMapaMesas } from '/assets/js/core/mapa-mesas.js';
+    import { conectarAtualizacoesMesas } from '/assets/js/core/ws.js';
+
+    if (iniciarPagina('caixa')) {
+        inicializarMapaMesas();
+        const status = document.getElementById('status-mesas-tempo-real');
+
+        try {
+            const cliente = await conectarAtualizacoesMesas({
+                aoConectar: () => { status.textContent = 'Atualizações em tempo real conectadas.'; },
+                aoAtualizar: () => carregarMapaMesas(),
+                aoErro: (erro) => { status.textContent = `Atualizações em tempo real indisponíveis: ${erro.message}`; },
+            });
+            window.addEventListener('pagehide', () => cliente.deactivate());
+        } catch (erro) {
+            status.textContent = `Atualizações em tempo real indisponíveis: ${erro.message}`;
+        }
+    }
 </script>
 </body>
 </html>
