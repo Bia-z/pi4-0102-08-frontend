@@ -1,9 +1,15 @@
-import { cadastrarProduto, obterCardapio } from '../../assets/js/core/api.js';
+import {
+    cadastrarProduto,
+    obterCardapio,
+    obterIngredientes,
+} from '../../assets/js/core/api.js';
 import { iniciarPagina } from '../../assets/js/core/guard.js';
 
 const MENSAGENS_ERRO = {
     ACESSO_NEGADO: 'Apenas um administrador pode cadastrar produtos.',
     CATEGORIA_NAO_ENCONTRADA: 'A categoria selecionada não foi encontrada. Atualize as categorias e tente novamente.',
+    INGREDIENTES_OBRIGATORIOS: 'Selecione pelo menos um ingrediente.',
+    INGREDIENTE_DUPLICADO: 'Não selecione o mesmo ingrediente mais de uma vez.',
     INGREDIENTE_NAO_ENCONTRADO: 'Um ou mais ingredientes não foram encontrados. Confira os IDs informados.',
     PRECO_INVALIDO: 'Informe um preço maior que zero.',
     PRODUTO_DUPLICADO: 'Já existe um produto com esse nome.',
@@ -27,13 +33,6 @@ function limparErro(campo) {
     if (erro) erro.textContent = '';
 }
 
-function idsIngredientes(valor) {
-    if (!valor.trim()) return [];
-    const partes = valor.split(',').map((parte) => parte.trim());
-    if (partes.some((parte) => !/^[1-9]\d*$/.test(parte))) return null;
-    return [...new Set(partes.map(Number))];
-}
-
 function mostrarCategorias(categorias, seletor) {
     seletor.replaceChildren(new Option('Selecione uma categoria', ''));
     categorias.forEach((categoria) => {
@@ -42,12 +41,27 @@ function mostrarCategorias(categorias, seletor) {
     seletor.disabled = categorias.length === 0;
 }
 
+function mostrarIngredientes(ingredientes, seletor) {
+    seletor.replaceChildren();
+    const idsExibidos = new Set();
+    ingredientes.forEach((ingrediente) => {
+        if (!Number.isSafeInteger(ingrediente.id) || ingrediente.id < 1 || !ingrediente.nome) {
+            throw new Error('RESPOSTA_INVALIDA');
+        }
+        if (idsExibidos.has(ingrediente.id)) return;
+        idsExibidos.add(ingrediente.id);
+        seletor.add(new Option(ingrediente.nome, String(ingrediente.id)));
+    });
+    seletor.disabled = idsExibidos.size === 0;
+}
+
 export function inicializarCadastroProduto({
     form = document.getElementById('form-produto'),
     alerta = document.getElementById('produto-alerta'),
     sucesso = document.getElementById('produto-sucesso'),
     botao = document.getElementById('btn-cadastrar-produto'),
     obterCategorias = obterCardapio,
+    obterListaIngredientes = obterIngredientes,
     cadastrar = cadastrarProduto,
 } = {}) {
     if (!form) return;
@@ -63,33 +77,46 @@ export function inicializarCadastroProduto({
     };
     let enviando = false;
     let categoriasDisponiveis = false;
+    let ingredientesDisponiveis = false;
 
-    const carregarCategorias = async () => {
+    const carregarOpcoes = async () => {
         try {
-            const categorias = await obterCategorias();
-            if (!Array.isArray(categorias)) {
+            const [categorias, ingredientes] = await Promise.all([
+                obterCategorias(),
+                obterListaIngredientes(),
+            ]);
+            if (!Array.isArray(categorias) || !Array.isArray(ingredientes)) {
                 throw new Error('RESPOSTA_INVALIDA');
             }
             mostrarCategorias(categorias, campos.categoriaId);
+            mostrarIngredientes(ingredientes, campos.ingredientes);
             categoriasDisponiveis = categorias.length > 0;
-            botao.disabled = !categoriasDisponiveis;
+            ingredientesDisponiveis = campos.ingredientes.options.length > 0;
+            botao.disabled = !(categoriasDisponiveis && ingredientesDisponiveis);
             if (!categoriasDisponiveis) {
                 alerta.textContent = 'Nenhuma categoria ativa foi encontrada no cardápio.';
+                alerta.classList.remove('d-none');
+            } else if (!ingredientesDisponiveis) {
+                alerta.textContent = 'Nenhum ingrediente ativo foi encontrado. Cadastre ingredientes antes de criar produtos.';
                 alerta.classList.remove('d-none');
             }
         } catch (erro) {
             alerta.textContent = MENSAGENS_ERRO[erro.codigo]
-                || 'Não foi possível carregar as categorias do cardápio.';
+                || 'Não foi possível carregar as categorias e os ingredientes.';
             alerta.classList.remove('d-none');
             campos.categoriaId.replaceChildren(new Option('Categorias indisponíveis', ''));
             campos.categoriaId.disabled = true;
+            campos.ingredientes.replaceChildren(new Option('Ingredientes indisponíveis', ''));
+            campos.ingredientes.disabled = true;
             botao.disabled = true;
+        } finally {
+            form.classList.remove('d-none');
         }
     };
 
     form.addEventListener('submit', async (evento) => {
         evento.preventDefault();
-        if (enviando || !categoriasDisponiveis) return;
+        if (enviando || !categoriasDisponiveis || !ingredientesDisponiveis) return;
 
         alerta.textContent = '';
         alerta.classList.add('d-none');
@@ -111,9 +138,12 @@ export function inicializarCadastroProduto({
             mostrarErro('categoriaId', 'Selecione uma categoria.');
             valido = false;
         }
-        const ingredientes = idsIngredientes(campos.ingredientes.value);
-        if (ingredientes === null) {
-            mostrarErro('ingredientes', 'Informe apenas IDs inteiros positivos separados por vírgula.');
+        const ingredientes = Array.from(campos.ingredientes.selectedOptions, (opcao) => Number(opcao.value));
+        if (!ingredientes.length) {
+            mostrarErro('ingredientes', MENSAGENS_ERRO.INGREDIENTES_OBRIGATORIOS);
+            valido = false;
+        } else if (new Set(ingredientes).size !== ingredientes.length) {
+            mostrarErro('ingredientes', MENSAGENS_ERRO.INGREDIENTE_DUPLICADO);
             valido = false;
         }
         if (!valido) return;
@@ -122,11 +152,11 @@ export function inicializarCadastroProduto({
             nome: campos.nome.value.trim(),
             preco,
             categoriaId: Number(campos.categoriaId.value),
+            ingredientes,
             ativo: campos.ativo.checked,
         };
         if (campos.descricao.value.trim()) produto.descricao = campos.descricao.value.trim();
         if (campos.imagemUrl.value.trim()) produto.imagemUrl = campos.imagemUrl.value.trim();
-        if (ingredientes.length) produto.ingredientes = ingredientes;
 
         enviando = true;
         botao.disabled = true;
@@ -142,10 +172,16 @@ export function inicializarCadastroProduto({
             const mensagensPorCampo = {
                 PRECO_INVALIDO: ['preco', MENSAGENS_ERRO.PRECO_INVALIDO],
                 CATEGORIA_NAO_ENCONTRADA: ['categoriaId', MENSAGENS_ERRO.CATEGORIA_NAO_ENCONTRADA],
+                INGREDIENTES_OBRIGATORIOS: ['ingredientes', MENSAGENS_ERRO.INGREDIENTES_OBRIGATORIOS],
+                INGREDIENTE_DUPLICADO: ['ingredientes', MENSAGENS_ERRO.INGREDIENTE_DUPLICADO],
+                INGREDIENTE_NAO_ENCONTRADO: ['ingredientes', MENSAGENS_ERRO.INGREDIENTE_NAO_ENCONTRADO],
             };
             const erroCampo = mensagensPorCampo[erro.codigo];
             if (erroCampo) {
                 mostrarErro(...erroCampo);
+            } else if (erro.codigo === 'PRODUTO_DUPLICADO') {
+                alerta.textContent = MENSAGENS_ERRO.PRODUTO_DUPLICADO;
+                alerta.classList.remove('d-none');
             } else {
                 alerta.textContent = MENSAGENS_ERRO[erro.codigo]
                     || 'Não foi possível cadastrar o produto. Tente novamente.';
@@ -153,12 +189,12 @@ export function inicializarCadastroProduto({
             }
         } finally {
             enviando = false;
-            botao.disabled = !categoriasDisponiveis;
+            botao.disabled = !(categoriasDisponiveis && ingredientesDisponiveis);
             botao.textContent = 'Cadastrar produto';
         }
     });
 
-    carregarCategorias();
+    carregarOpcoes();
 }
 
 if (typeof document !== 'undefined') {

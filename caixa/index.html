@@ -17,12 +17,19 @@
 
 <main class="container py-4">
     <h2 class="h4">Área: Caixa</h2>
-    <p class="text-secondary">Em construção.</p>
+    <section aria-labelledby="titulo-mapa-mesas">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3 id="titulo-mapa-mesas" class="h5 mb-0">Mapa de mesas</h3>
+            <button type="button" id="atualizar-mesas" class="btn btn-outline-primary btn-sm">Atualizar mesas</button>
+        </div>
+        <div id="mapa-mesas" class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3" aria-live="polite"></div>
+    </section>
 </main>
 
 <script type="module">
     import { iniciarPagina } from '/assets/js/core/guard.js';
-    iniciarPagina('caixa');
+    import { inicializarMapaMesas } from '/assets/js/core/mapa-mesas.js';
+    if (iniciarPagina('caixa')) inicializarMapaMesas();
 </script>
 </body>
 </html>

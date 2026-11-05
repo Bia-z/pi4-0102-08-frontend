@@ -76,3 +76,11 @@ export function cadastrarMesa(mesa) {
 export function obterCardapio() {
     return requisitarAutenticado('/cardapio', { method: 'GET' });
 }
+
+export function obterIngredientes() {
+    return requisitarAutenticado('/ingredientes', { method: 'GET' });
+}
+
+export function obterMapaMesas() {
+    return requisitarAutenticado('/mesas/mapa', { method: 'GET' });
+}
