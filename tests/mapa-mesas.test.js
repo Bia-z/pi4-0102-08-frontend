@@ -17,6 +17,10 @@ class ElementoFake {
         this.children.push(elemento);
     }
 
+    hasChildNodes() {
+        return this.children.length > 0;
+    }
+
     replaceChildren(...elementos) {
         this.children = [...elementos];
         this.textContent = '';

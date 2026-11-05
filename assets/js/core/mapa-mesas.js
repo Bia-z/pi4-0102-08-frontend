@@ -16,7 +16,7 @@ export async function carregarMapaMesas({
     mapa = document.getElementById('mapa-mesas'),
     obterMapa = obterMapaMesas,
 } = {}) {
-    mapa.textContent = 'Carregando mesas...';
+    if (!mapa.hasChildNodes()) mapa.textContent = 'Carregando mesas...';
 
     try {
         const dados = await obterMapa();

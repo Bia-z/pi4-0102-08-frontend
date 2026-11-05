@@ -70,6 +70,8 @@ export async function carregarCardapio({
         const dados = await obter();
         if (!Array.isArray(dados)) throw new Error('RESPOSTA_INVALIDA');
         renderizarCardapio(dados, categorias);
+        alerta.textContent = '';
+        alerta.classList.add('d-none');
         const semProdutos = dados.every((categoria) => !categoria.produtos?.length);
         vazio.classList.toggle('d-none', !semProdutos);
     } catch {
@@ -79,7 +81,7 @@ export async function carregarCardapio({
 }
 
 if (typeof document !== 'undefined') {
-    if (document.getElementById('cardapio-categorias') && iniciarPagina('garcom')) {
+    if (document.getElementById('pagina-cardapio') && iniciarPagina('garcom')) {
         carregarCardapio();
     }
 }

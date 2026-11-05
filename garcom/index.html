@@ -17,21 +17,23 @@
 
 <main class="container py-4">
     <h2 class="h4">Área: Garçom</h2>
-    <p class="text-secondary">Consulte as mesas e os produtos disponíveis no cardápio.</p>
-    <section class="mb-4" aria-labelledby="titulo-mapa-mesas">
+    <p class="text-secondary">Consulte o cardápio ativo e acompanhe o mapa de mesas.</p>
+    <div id="painel-garcom">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2 id="titulo-mapa-mesas" class="h5 mb-0">Mapa de mesas</h2>
-            <button type="button" id="atualizar-mesas" class="btn btn-outline-primary btn-sm">Atualizar mesas</button>
+            <h2 class="h5 mb-0">Cardápio ativo</h2>
+            <button type="button" id="atualizar" class="btn btn-outline-primary btn-sm">Atualizar</button>
         </div>
-        <div id="mapa-mesas" class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3" aria-live="polite"></div>
-    </section>
-    <a class="btn btn-primary" href="/garcom/cardapio.html">Ver cardápio</a>
+        <div id="cardapio-alerta" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
+        <div id="cardapio-vazio" class="alert alert-info d-none" role="status">Não há produtos ativos no cardápio.</div>
+        <div id="cardapio-categorias" class="vstack gap-4 mb-5" aria-live="polite">Carregando cardápio...</div>
+
+        <section class="mb-4" aria-labelledby="titulo-mapa-mesas">
+            <h2 id="titulo-mapa-mesas" class="h5 mb-3">Mapa de mesas</h2>
+            <div id="mapa-mesas" class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3" aria-live="polite"></div>
+        </section>
+    </div>
 </main>
 
-<script type="module">
-    import { iniciarPagina } from '/assets/js/core/guard.js';
-    import { inicializarMapaMesas } from '/assets/js/core/mapa-mesas.js';
-    if (iniciarPagina('garcom')) inicializarMapaMesas();
-</script>
+<script type="module" src="/garcom/js/index.js"></script>
 </body>
 </html>
