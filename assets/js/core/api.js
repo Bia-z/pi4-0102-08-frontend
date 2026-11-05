@@ -65,6 +65,14 @@ export function cadastrarProduto(produto) {
     });
 }
 
+export function cadastrarMesa(mesa) {
+    return requisitarAutenticado('/mesas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mesa),
+    });
+}
+
 export function obterCardapio() {
     return requisitarAutenticado('/cardapio', { method: 'GET' });
 }

@@ -12,9 +12,10 @@
 
 ## Cadastro de mesas
 
-1. O Administrador preenche o cadastro de uma nova mesa no painel gerencial.
-2. O Frontend envia os dados ao Backend utilizando o contrato `cadastrarMesa` (CT5).
-3. O Backend valida o número e a capacidade, grava os dados em `tb_mesa` (CT6) e confirma a operação.
+1. O Administrador informa o número e a capacidade da mesa no painel gerencial.
+2. O Frontend envia `POST /api/mesas` com o token no cabeçalho `Authorization: Bearer <token>` e corpo JSON contendo `numero` e `capacidade` (CT5).
+3. O Backend valida e grava a mesa em `tb_mesa` (CT6), respondendo com `201 Created`; o Frontend confirma o número e a capacidade retornados.
+4. Se o número já existir ou a capacidade for inválida, o Frontend informa o erro retornado pelo Backend.
 
 ## Diagrama de Sequência
 
