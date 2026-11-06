@@ -85,6 +85,29 @@ export function obterMapaMesas() {
     return requisitarAutenticado('/mesas/mapa', { method: 'GET' });
 }
 
+const MENSAGENS_ERRO_TRANSFERENCIA = {
+    MESA_DESTINO_OCUPADA: 'A mesa de destino não está disponível. Escolha outra mesa.',
+    MESA_EM_PAGAMENTO: 'Não é possível transferir o pedido porque a mesa está em pagamento.',
+    PEDIDO_NAO_EM_ABERTO: 'Somente pedidos em aberto podem ser transferidos.',
+    MESA_NAO_ENCONTRADA: 'A mesa de destino não foi encontrada. Atualize a lista e tente novamente.',
+};
+
+export function transferirPedidoParaMesa(pedidoId, mesaDestinoId) {
+    return requisitarAutenticado(
+        `/pedidos/${encodeURIComponent(pedidoId)}/transferir-mesa`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mesaDestinoId }),
+        },
+    ).catch((erro) => {
+        if (MENSAGENS_ERRO_TRANSFERENCIA[erro.codigo]) {
+            erro.message = MENSAGENS_ERRO_TRANSFERENCIA[erro.codigo];
+        }
+        throw erro;
+    });
+}
+
 export function atualizarStatusItemPedido(pedidoId, itemId, novoStatus) {
     return requisitarAutenticado(
         `/pedidos/${encodeURIComponent(pedidoId)}/itens/${encodeURIComponent(itemId)}/status`,
