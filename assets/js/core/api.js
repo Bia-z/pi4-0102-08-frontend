@@ -96,6 +96,48 @@ export function atualizarStatusItemPedido(pedidoId, itemId, novoStatus) {
     );
 }
 
+export async function baixarComprovantePedido(pedidoId) {
+    if (pedidoId === undefined || pedidoId === null || pedidoId === '') {
+        throw new TypeError('Informe um pedido pago para baixar o comprovante.');
+    }
+
+    const sessao = lerSessao();
+    if (!sessao?.token) {
+        sair();
+        const erro = new Error('TOKEN_AUSENTE');
+        erro.codigo = 'TOKEN_AUSENTE';
+        erro.status = 401;
+        throw erro;
+    }
+
+    const resposta = await fetch(
+        `${API_BASE}/pedidos/${encodeURIComponent(pedidoId)}/comprovante-pdf`,
+        { method: 'GET', headers: { Authorization: `Bearer ${sessao.token}` } },
+    );
+
+    if (!resposta.ok) {
+        const dados = await resposta.json().catch(() => ({}));
+        const codigo = dados.erro || 'ERRO_DESCONHECIDO';
+        const erro = new Error(codigo);
+        erro.codigo = codigo;
+        erro.status = resposta.status;
+        if (erro.status === 401 && ['TOKEN_AUSENTE', 'TOKEN_INVALIDO'].includes(erro.codigo)) {
+            sair();
+        }
+        throw erro;
+    }
+
+    const arquivo = resposta.blob
+        ? await resposta.blob()
+        : new Blob([await resposta.arrayBuffer()], { type: 'application/pdf' });
+    const url = URL.createObjectURL(arquivo);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `comprovante-${pedidoId}.pdf`;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
 export function processarPagamento(mesaId, { pagamentos, desconto } = {}) {
     const corpo = { pagamentos };
     if (desconto !== undefined) corpo.desconto = desconto;
