@@ -51,3 +51,55 @@ export async function conectarAtualizacoesMesas({
     cliente.activate();
     return cliente;
 }
+
+export async function conectarAtualizacoesPedidos({
+    aoAtualizar,
+    aoConectar = () => {},
+    aoErro = (erro) => console.error(erro),
+    criarCliente,
+} = {}) {
+    const sessao = lerSessao();
+    if (!sessao?.token) {
+        throw new Error('Não há uma sessão autenticada para conectar às atualizações dos pedidos.');
+    }
+    if (typeof aoAtualizar !== 'function') {
+        throw new TypeError('Informe uma função para tratar as atualizações dos pedidos.');
+    }
+
+    const protocolo = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const brokerURL = `${protocolo}//${window.location.host}/ws`;
+    let cliente;
+    const opcoesCliente = {
+        brokerURL,
+        connectHeaders: { Authorization: `Bearer ${sessao.token}` },
+        reconnectDelay: 5000,
+        onConnect: () => {
+            aoConectar();
+            cliente.subscribe('/topic/pedidos', ({ body }) => {
+                try {
+                    const evento = JSON.parse(body);
+                    if (evento.tipo === 'statusPedidoAtualizado') {
+                        Promise.resolve(aoAtualizar(evento)).catch(aoErro);
+                    }
+                } catch (erro) {
+                    aoErro(erro);
+                }
+            });
+        },
+        onStompError: (frame) => {
+            aoErro(new Error(frame.headers?.message || 'Falha na conexão STOMP.'));
+        },
+        onWebSocketError: () => {
+            aoErro(new Error('Não foi possível conectar às atualizações dos pedidos.'));
+        },
+    };
+
+    if (criarCliente) {
+        cliente = criarCliente(opcoesCliente);
+    } else {
+        const { Client } = await import('@stomp/stompjs');
+        cliente = new Client(opcoesCliente);
+    }
+    cliente.activate();
+    return cliente;
+}

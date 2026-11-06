@@ -85,6 +85,17 @@ export function obterMapaMesas() {
     return requisitarAutenticado('/mesas/mapa', { method: 'GET' });
 }
 
+export function atualizarStatusItemPedido(pedidoId, itemId, novoStatus) {
+    return requisitarAutenticado(
+        `/pedidos/${encodeURIComponent(pedidoId)}/itens/${encodeURIComponent(itemId)}/status`,
+        {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ novoStatus }),
+        },
+    );
+}
+
 export function processarPagamento(mesaId, { pagamentos, desconto } = {}) {
     const corpo = { pagamentos };
     if (desconto !== undefined) corpo.desconto = desconto;

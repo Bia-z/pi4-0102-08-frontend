@@ -1,29 +1,33 @@
-# Fluxo do E5: Atualização de status do pedido
+# Fluxo do E5: Atualização de status dos itens do pedido
 
-**Feito quando:** Cozinha muda pedido de 'novo' para 'em preparo' e 'pronto', refletindo no garçom.
+**Feito quando:** Cozinha ou Admin atualiza o status de um item de pedido de `aguardando` para `em_preparo` e depois para `pronto`, refletindo nos painéis conectados.
 
 ## Passos
 
-1. O cozinheiro clica na tela para alterar o status do pedido (ex.: de "Aguardando" para "Em Preparo" ou "Pronto").
-2. O Frontend da Cozinha chama o Backend com a operação `atualizarStatusPedido` (CT10).
-3. O Backend valida a transição de estado permitida e atualiza a coluna `status` na tabela `tb_pedido` (CT8).
-4. O Backend envia a notificação WebSocket `statusPedidoAtualizado` (CT11) para todos os painéis ativos.
-5. O painel do Garçom e o totem da Cozinha recebem o evento e atualizam a visualização do pedido em tempo real.
+1. Um usuário com perfil `COZINHA` ou `ADMIN` solicita a atualização de um item.
+2. O frontend chama `PATCH /api/pedidos/{pedidoId}/itens/{itemId}/status` com `{ "novoStatus": "em_preparo" }` ou `{ "novoStatus": "pronto" }`.
+3. O backend valida o perfil e a transição permitida (`aguardando` → `em_preparo` → `pronto`) e retorna `pedidoId`, `itemId`, `status` e `atualizadoEm`.
+4. O backend publica no tópico STOMP `/topic/pedidos` uma mensagem `statusPedidoAtualizado` com `tipo`, `pedidoId`, `itemId`, `numeroMesa`, `status` e `atualizadoEm`.
+5. Os painéis conectados localizam o item por `pedidoId` e `itemId` e atualizam sua visualização.
+
+Erros de domínio retornados pelo backend: `PEDIDO_NAO_ENCONTRADO`, `ITEM_PEDIDO_NAO_ENCONTRADO`, `TRANSICAO_STATUS_INVALIDA` e `ACESSO_NEGADO`.
 
 ## Diagrama de Sequência
 
 ```mermaid
 sequenceDiagram
     actor Cozinha as Cozinha
+    actor Cozinha as Cozinha
     actor Garcom as Garçom
     participant Frontend
     participant Backend
     participant Banco
 
-    Cozinha->>Frontend: clica em "Aceitar Pedido" / "Pronto"
-    Frontend->>Backend: CT10 atualizarStatusPedido
-    Backend->>Banco: CT8 tb_pedido (UPDATE status)
+    Cozinha->>Frontend: atualiza status do item
+    Frontend->>Backend: PATCH /api/pedidos/{pedidoId}/itens/{itemId}/status
+    Backend->>Banco: valida e atualiza status do item
     Banco-->>Backend: status atualizado
-    Backend-->>Frontend: CT11 statusPedidoAtualizado (WebSocket)
-    Frontend-->>Cozinha: atualiza aba e cor do card
-    Frontend-->>Garcom: sinaliza que o prato está pronto
+    Backend-->>Frontend: pedidoId, itemId, status, atualizadoEm
+    Backend-->>Frontend: STOMP /topic/pedidos: statusPedidoAtualizado
+    Frontend-->>Cozinha: atualiza item correspondente
+    Frontend-->>Garcom: atualiza item correspondente
