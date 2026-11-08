@@ -3,8 +3,14 @@ import {
     cancelarPagamento,
     iniciarPagamento,
     listarPedidos,
+    obterMapaMesas,
     processarPagamento,
+    transferirPedidoParaMesa,
 } from '../../assets/js/core/api.js';
+import {
+    conectarAtualizacoesMesas,
+    conectarAtualizacoesPedidos,
+} from '../../assets/js/core/ws.js';
 
 const TAXA_SERVICO_PERCENTUAL = 10;
 const FORMAS_PAGAMENTO = [
@@ -18,6 +24,21 @@ const FORMATO_MOEDA = new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
 });
+const ROTULOS_STATUS_ITEM = {
+    aguardando: 'Aguardando cozinha',
+    em_preparo: 'Em preparo',
+    em_preparacao: 'Em preparo',
+    preparando: 'Em preparo',
+    pronto: 'Pronto',
+    entregue: 'Entregue',
+    cancelado: 'Cancelado',
+};
+const ROTULOS_STATUS_MESA = {
+    disponivel: 'Disponível',
+    ocupada: 'Ocupada',
+    em_pagamento: 'Em pagamento',
+    reservada: 'Reservada',
+};
 const MENSAGENS_ERRO = {
     VALOR_PAGAMENTO_INSUFICIENTE: 'A soma dos pagamentos é menor que o total da conta.',
     TROCO_REQUER_DINHEIRO: 'O troco só pode ser devolvido quando há pagamento em dinheiro.',
@@ -25,7 +46,7 @@ const MENSAGENS_ERRO = {
     PAGAMENTO_INVALIDO: 'Confira as formas de pagamento e os valores informados.',
     MESA_SEM_PEDIDO_ABERTO: 'Não há pedidos em aberto para esta mesa.',
     MESA_JA_EM_PAGAMENTO: 'Esta mesa já está sendo fechada em outro caixa.',
-    MESA_NAO_EM_PAGAMENTO: 'A mesa não está em pagamento. Atualize o mapa e tente novamente.',
+    MESA_NAO_EM_PAGAMENTO: 'Este fechamento já não está ativo. Volte ao mapa para conferir o status atualizado da mesa.',
 };
 
 export function mensagemErroPagamento(erro) {
@@ -148,11 +169,30 @@ function criarLinhaPagamento(documento, aoRemover) {
 export async function inicializarPagamento({
     mesaId = new URLSearchParams(globalThis.location.search).get('mesaId'),
     documento = globalThis.document,
-    api = { listarPedidos, iniciarPagamento, processarPagamento, cancelarPagamento },
+    api = {
+        listarPedidos,
+        obterMapaMesas,
+        iniciarPagamento,
+        processarPagamento,
+        cancelarPagamento,
+        transferirPedido: transferirPedidoParaMesa,
+    },
+    conectarSessao = conectarAtualizacoesMesas,
+    conectarPedidos = conectarAtualizacoesPedidos,
+    registrarPagehide = (callback) => globalThis.addEventListener('pagehide', callback, { once: true }),
+    aoConcluir,
+    aoCancelar,
+    aoVoltar,
+    navegar = (url) => globalThis.location.assign(url),
+    registrarIntervalo = (callback, intervalo) => globalThis.setInterval(callback, intervalo),
+    limparIntervalo = (intervalo) => globalThis.clearInterval(intervalo),
 } = {}) {
     const elementos = {
         mesa: documento.getElementById('mesa-numero'),
         itens: documento.getElementById('itens-pedido'),
+        statusPedidos: documento.getElementById('status-pedidos'),
+        iniciar: documento.getElementById('iniciar-pagamento'),
+        detalhesPagamento: documento.getElementById('detalhes-pagamento'),
         linhas: documento.getElementById('pagamentos'),
         formulario: documento.getElementById('form-pagamento'),
         desconto: documento.getElementById('desconto'),
@@ -177,6 +217,11 @@ export async function inicializarPagamento({
         botao: elementos.comprovante,
         mensagem: elementos.erroComprovante,
     });
+    elementos.voltar.addEventListener('click', (evento) => {
+        if (!aoVoltar) return;
+        evento.preventDefault();
+        aoVoltar();
+    });
 
     const mostrarErro = (erro) => {
         elementos.erro.textContent = mensagemErroPagamento(erro);
@@ -196,7 +241,142 @@ export async function inicializarPagamento({
     let resumo;
     let pedidos = [];
     let pagamentoIniciado = false;
+    let clienteWebSocket;
+    let clientePedidos;
+    let intervaloAtualizacao;
+    let carregandoPedidos = false;
     const linhasPagamento = [];
+
+    const obterPedidosDaMesa = async () => {
+        const [respostaPedidos, respostaMapa] = await Promise.all([
+            api.listarPedidos({ mesaId }),
+            api.obterMapaMesas(),
+        ]);
+        const pedidosDaMesa = Array.isArray(respostaPedidos)
+            ? respostaPedidos
+            : respostaPedidos.pedidos ?? respostaPedidos.conteudo ?? [];
+        const mesa = (respostaMapa.mesas ?? []).find(
+            (registro) => String(registro.mesaId) === String(mesaId),
+        );
+        if (!mesa) throw new Error('Não foi possível localizar a mesa selecionada.');
+        const statusMesa = String(mesa.status ?? '').trim().toLocaleLowerCase('pt-BR');
+        return {
+            mesa,
+            statusMesa,
+            pedidos: pedidosDaMesa.filter((pedido) => {
+                const statusPedido = String(pedido.status ?? '').trim().toLocaleLowerCase('pt-BR');
+                return !['pago', 'cancelado'].includes(statusPedido);
+            }),
+            destinos: (respostaMapa.mesas ?? []).filter((registro) => (
+                String(registro.mesaId) !== String(mesaId)
+                && String(registro.status ?? '').trim().toLocaleLowerCase('pt-BR') === 'disponivel'
+            )),
+        };
+    };
+
+    const carregarPedidosDaMesa = async () => {
+        if (carregandoPedidos) return;
+        carregandoPedidos = true;
+        elementos.statusPedidos.textContent = 'Carregando pedidos e itens...';
+        elementos.iniciar.disabled = true;
+        try {
+            const dados = await obterPedidosDaMesa();
+            elementos.erro.hidden = true;
+            pedidos = dados.pedidos;
+            elementos.mesa.textContent = `Mesa ${dados.mesa.numero ?? mesaId}`;
+            elementos.itens.replaceChildren();
+            if (!pedidos.length) {
+                const vazio = documento.createElement('li');
+                vazio.className = 'list-group-item text-secondary';
+                vazio.textContent = 'Não há pedidos ou itens em aberto nesta mesa.';
+                elementos.itens.appendChild(vazio);
+            }
+            for (const pedido of pedidos) {
+                const grupo = documento.createElement('li');
+                grupo.className = 'list-group-item';
+                const titulo = documento.createElement('h3');
+                titulo.className = 'h6';
+                titulo.textContent = `Pedido ${pedido.pedidoId ?? pedido.id} · ${pedido.status || 'Em aberto'}`;
+                grupo.appendChild(titulo);
+                const listaItens = documento.createElement('ul');
+                listaItens.className = 'list-unstyled mb-3';
+                for (const item of pedido.itens ?? pedido.items ?? []) {
+                    if (item.status?.toLowerCase() === 'cancelado') continue;
+                    const linha = documento.createElement('li');
+                    const subtotalItem = Math.round(Number(item.precoUnitario) * 100) * item.quantidade;
+                    const statusItem = String(item.status || 'Não informado')
+                        .toLowerCase()
+                        .replaceAll(' ', '_');
+                    linha.textContent = `${item.quantidade} x ${item.produtoNome ?? item.nome ?? 'Item'} — ${
+                        FORMATO_MOEDA.format(subtotalItem / 100)} · Status: ${
+                        ROTULOS_STATUS_ITEM[statusItem] ?? item.status ?? 'Não informado'}`;
+                    if (item.observacao) linha.textContent += ` · ${item.observacao}`;
+                    listaItens.appendChild(linha);
+                }
+                grupo.appendChild(listaItens);
+
+                if (!pagamentoIniciado && dados.statusMesa === 'ocupada' && dados.destinos.length) {
+                    const linhaTransferencia = documento.createElement('div');
+                    linhaTransferencia.className = 'row g-2 align-items-end';
+                    const colunaSelect = documento.createElement('div');
+                    colunaSelect.className = 'col-12 col-md-8';
+                    const rotulo = documento.createElement('label');
+                    rotulo.className = 'form-label';
+                    rotulo.textContent = 'Transferir pedido para';
+                    const seletor = documento.createElement('select');
+                    seletor.className = 'form-select';
+                    seletor.setAttribute('aria-label', `Mesa de destino do pedido ${pedido.pedidoId ?? pedido.id}`);
+                    const opcaoPadrao = documento.createElement('option');
+                    opcaoPadrao.value = '';
+                    opcaoPadrao.textContent = 'Selecione uma mesa disponível';
+                    seletor.appendChild(opcaoPadrao);
+                    for (const destino of dados.destinos) {
+                        const opcao = documento.createElement('option');
+                        opcao.value = destino.mesaId;
+                        opcao.textContent = `Mesa ${destino.numero}`;
+                        seletor.appendChild(opcao);
+                    }
+                    rotulo.appendChild(seletor);
+                    colunaSelect.appendChild(rotulo);
+                    const colunaBotao = documento.createElement('div');
+                    colunaBotao.className = 'col-12 col-md-4';
+                    const transferir = documento.createElement('button');
+                    transferir.type = 'button';
+                    transferir.className = 'btn btn-outline-primary w-100';
+                    transferir.textContent = 'Transferir';
+                    transferir.disabled = true;
+                    seletor.addEventListener('change', () => { transferir.disabled = !seletor.value; });
+                    transferir.addEventListener('click', async () => {
+                        const destinoId = Number(seletor.value);
+                        if (!Number.isInteger(destinoId) || destinoId <= 0) return;
+                        transferir.disabled = true;
+                        elementos.erro.hidden = true;
+                        try {
+                            await api.transferirPedido(pedido.pedidoId ?? pedido.id, destinoId);
+                            await carregarPedidosDaMesa();
+                        } catch (falha) {
+                            mostrarErro(falha);
+                            transferir.disabled = false;
+                        }
+                    });
+                    colunaBotao.appendChild(transferir);
+                    linhaTransferencia.append(colunaSelect, colunaBotao);
+                    grupo.appendChild(linhaTransferencia);
+                }
+                elementos.itens.appendChild(grupo);
+            }
+            elementos.iniciar.disabled = pedidos.length === 0;
+            const statusMesa = ROTULOS_STATUS_MESA[dados.statusMesa] ?? dados.mesa.status ?? 'Desconhecido';
+            elementos.statusPedidos.textContent = pedidos.length === 0
+                ? `Mesa ${statusMesa.toLocaleLowerCase('pt-BR')}; nenhum pedido em aberto.`
+                : `Mesa ${statusMesa} · ${pedidos.length} pedido(s) em aberto.`;
+        } catch (falha) {
+            elementos.statusPedidos.textContent = '';
+            mostrarErro(falha);
+        } finally {
+            carregandoPedidos = false;
+        }
+    };
 
     const incluirLinha = () => {
         let registro;
@@ -242,51 +422,82 @@ export async function inicializarPagamento({
     elementos.formulario.hidden = true;
 
     try {
-        await api.iniciarPagamento(mesaId);
-        pagamentoIniciado = true;
-        const pedidosDaMesa = await api.listarPedidos({ mesaId });
-        pedidos = pedidosDaMesa.filter((pedido) => String(pedido.mesaId) === String(mesaId)
-            && !['pago', 'cancelado'].includes(pedido.status?.toLowerCase()));
-        if (pedidos.length === 0) {
-            throw Object.assign(new Error('Não há pedidos em aberto para esta mesa.'), {
-                codigo: 'MESA_SEM_PEDIDO_ABERTO',
-            });
-        }
-
-        for (const pedido of pedidos) {
-            for (const item of pedido.itens ?? []) {
-                if (item.status?.toLowerCase() === 'cancelado') continue;
-                const itemLinha = documento.createElement('li');
-                const subtotalItem = Math.round(Number(item.precoUnitario) * 100) * item.quantidade;
-                itemLinha.textContent = `${item.quantidade} x ${item.produtoNome} — ${
-                    FORMATO_MOEDA.format(subtotalItem / 100)}`;
-                elementos.itens.appendChild(itemLinha);
-            }
-        }
-        const percentual = Number(pedidos[0].taxaServicoPercentual);
-        if (!Number.isFinite(percentual) || percentual < 0) {
-            throw new TypeError('Não foi possível obter o percentual da taxa de serviço.');
-        }
-        resumo = calcularResumoPagamento(pedidos, 0, percentual);
-        elementos.taxaLabel.textContent = `Taxa de serviço (${percentual}%)`;
-        atualizarResumo();
-        elementos.formulario.hidden = false;
-    } catch (erro) {
-        mostrarErro(erro);
-        if (pagamentoIniciado) {
-            try {
-                await api.cancelarPagamento(mesaId);
-                pagamentoIniciado = false;
-                elementos.voltar.hidden = false;
-            } catch (erroCancelamento) {
-                elementos.erro.textContent += ` Não foi possível liberar a mesa: ${
-                    erroCancelamento.codigo || erroCancelamento.message}`;
-            }
-        } else {
-            elementos.voltar.hidden = false;
-        }
-        return;
+        await carregarPedidosDaMesa();
+        intervaloAtualizacao = registrarIntervalo(() => {
+            if (!pagamentoIniciado) carregarPedidosDaMesa();
+        }, 5000);
+        registrarPagehide(() => limparIntervalo(intervaloAtualizacao));
+        clientePedidos = await conectarPedidos({
+            aoAtualizar: () => {
+                if (!pagamentoIniciado) return carregarPedidosDaMesa();
+            },
+            aoErro: () => {
+                if (!pagamentoIniciado) {
+                    elementos.statusPedidos.textContent =
+                        'WebSocket reconectando; atualizações automáticas continuam ativas.';
+                }
+            },
+        });
+        registrarPagehide(() => clientePedidos?.deactivate());
+    } catch (falha) {
+        elementos.statusPedidos.textContent =
+            'WebSocket indisponível; atualizações automáticas continuam ativas.';
     }
+
+    elementos.iniciar.addEventListener('click', async () => {
+        if (pagamentoIniciado || elementos.iniciar.disabled) return;
+        elementos.iniciar.disabled = true;
+        elementos.erro.hidden = true;
+        try {
+            Promise.resolve()
+                .then(() => conectarSessao({ aoAtualizar: () => {} }))
+                .then((cliente) => {
+                    clienteWebSocket = cliente;
+                    registrarPagehide(() => clienteWebSocket?.deactivate());
+                })
+                .catch(() => {
+                    if (!elementos.statusPedidos.textContent.startsWith('Mesa ')) {
+                        elementos.statusPedidos.textContent =
+                            'WebSocket indisponível; o pagamento continua pela conexão com o servidor.';
+                    }
+                });
+            await api.iniciarPagamento(mesaId);
+            pagamentoIniciado = true;
+            const dados = await obterPedidosDaMesa();
+            pedidos = dados.pedidos;
+            if (pedidos.length === 0) {
+                throw Object.assign(new Error('Não há pedidos em aberto para esta mesa.'), {
+                    codigo: 'MESA_SEM_PEDIDO_ABERTO',
+                });
+            }
+            const percentual = Number(pedidos[0].taxaServicoPercentual);
+            if (!Number.isFinite(percentual) || percentual < 0) {
+                throw new TypeError('Não foi possível obter o percentual da taxa de serviço.');
+            }
+            resumo = calcularResumoPagamento(pedidos, 0, percentual);
+            elementos.taxaLabel.textContent = `Taxa de serviço (${percentual}%)`;
+            atualizarResumo();
+            elementos.detalhesPagamento.hidden = false;
+            elementos.formulario.hidden = false;
+            elementos.statusPedidos.textContent = 'Pagamento iniciado.';
+        } catch (falha) {
+            mostrarErro(falha);
+            if (pagamentoIniciado) {
+                try {
+                    await api.cancelarPagamento(mesaId);
+                    pagamentoIniciado = false;
+                } catch (erroCancelamento) {
+                    elementos.erro.textContent += ` Não foi possível liberar a mesa: ${
+                        erroCancelamento.codigo || erroCancelamento.message}`;
+                }
+            }
+            const erroInicio = elementos.erro.textContent;
+            elementos.iniciar.disabled = false;
+            await carregarPedidosDaMesa();
+            elementos.erro.textContent = erroInicio;
+            elementos.erro.hidden = false;
+        }
+    });
 
     elementos.formulario.addEventListener('submit', async (evento) => {
         evento.preventDefault();
@@ -330,6 +541,7 @@ export async function inicializarPagamento({
             elementos.erro.hidden = true;
             elementos.voltar.hidden = false;
             pagamentoConcluido = true;
+            aoConcluir?.(resposta);
             elementos.adicionar.disabled = true;
             elementos.desconto.disabled = true;
             for (const linha of linhasPagamento) {
@@ -349,8 +561,16 @@ export async function inicializarPagamento({
         try {
             await api.cancelarPagamento(mesaId);
             pagamentoIniciado = false;
-            globalThis.location.assign('/caixa/index.html');
+            if (aoCancelar) aoCancelar();
+            else navegar('/caixa/index.html');
         } catch (erro) {
+            if (erro.codigo === 'MESA_NAO_EM_PAGAMENTO') {
+                pagamentoIniciado = false;
+                elementos.voltar.hidden = false;
+                elementos.erro.textContent = mensagemErroPagamento(erro);
+                elementos.erro.hidden = false;
+                return;
+            }
             mostrarErro(erro);
             elementos.cancelar.disabled = false;
         }

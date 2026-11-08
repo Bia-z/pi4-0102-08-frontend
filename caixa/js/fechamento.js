@@ -32,7 +32,23 @@ function dataLocalAtual() {
 }
 
 function numeroRelatorio(valor) {
-    const numero = Number(valor);
+    if (typeof valor !== 'number' && typeof valor !== 'string') {
+        throw new Error('A resposta do servidor não contém um valor válido para o fechamento.');
+    }
+    let texto = String(valor).trim().replace(/^(-?)R\$\s*/i, '$1').replace(/\s/g, '');
+    if (!texto) {
+        throw new Error('A resposta do servidor não contém um valor válido para o fechamento.');
+    }
+    const virgula = texto.lastIndexOf(',');
+    const ponto = texto.lastIndexOf('.');
+    if (virgula !== -1 && ponto !== -1) {
+        const separadorDecimal = virgula > ponto ? ',' : '.';
+        const separadorMilhar = separadorDecimal === ',' ? /\./g : /,/g;
+        texto = texto.replace(separadorMilhar, '').replace(separadorDecimal, '.');
+    } else if (virgula !== -1) {
+        texto = texto.replace(/\./g, '').replace(',', '.');
+    }
+    const numero = Number(texto);
     if (!Number.isFinite(numero)) {
         throw new Error('A resposta do servidor não contém um valor válido para o fechamento.');
     }
@@ -50,6 +66,8 @@ export async function inicializarFechamento({
     documento = document,
     api = { fecharCaixa, obterCaixaAberto, obterRelatorioCaixa },
     dataAtual = dataLocalAtual,
+    perfil,
+    navegar = (url) => window.location.assign(url),
 } = {}) {
     const form = documento.getElementById('form-fechamento');
     const erro = documento.getElementById('erro-caixa');
@@ -77,6 +95,11 @@ export async function inicializarFechamento({
             const relatorioDados = await api.obterRelatorioCaixa(dataAtual());
             const relatorio = relatorioDados.relatorio ?? relatorioDados;
             const totais = relatorio.totaisPorFormaPagamento ?? relatorio.totais ?? relatorio;
+            const valorAbertura = obterValor(caixaAberto, ['valorAbertura'], null);
+            exibirValor(
+                documento.getElementById('fechamento-valor-abertura'),
+                valorAbertura === null ? 'Não informado' : numeroRelatorio(valorAbertura),
+            );
             let somaFormas = 0;
             for (const [id, chaves] of TOTAIS_POR_FORMA) {
                 const valor = numeroRelatorio(obterValor(totais, chaves, 0));
@@ -123,22 +146,33 @@ export async function inicializarFechamento({
         botao.disabled = true;
         try {
             const resultado = await api.fecharCaixa({ valorFechamento, codigoUsuario, senha });
-            const caixa = resultado.caixa ?? resultado;
-            const esperado = numeroRelatorio(obterValor(caixa, [
+            const caixa = resultado?.caixa ?? resultado ?? {};
+            const esperadoRetornado = obterValor(caixa, [
                 'valorEsperado', 'valorCalculado', 'valorAberturaEsperado',
-            ]));
-            const diferenca = obterValor(caixa, ['diferenca', 'valorDiferenca']);
-            const infoDiferenca = diferencaDoBackend(diferenca);
-            exibirValor(documento.getElementById('valor-esperado'), esperado);
+                'valorEsperadoFechamento', 'valorTotalEsperado',
+            ], null);
+            const diferencaRetornada = obterValor(caixa, ['diferenca', 'valorDiferenca'], null);
+            const diferenca = diferencaRetornada === null
+                ? null
+                : numeroRelatorio(diferencaRetornada);
+            const esperado = esperadoRetornado === null
+                ? (diferenca === null ? null : valorFechamento - diferenca)
+                : numeroRelatorio(esperadoRetornado);
+            const diferencaFinal = diferenca ?? (esperado === null ? null : valorFechamento - esperado);
+            const infoDiferenca = diferencaFinal === null
+                ? { texto: 'Não informado', classe: 'text-secondary' }
+                : diferencaDoBackend(diferencaFinal);
+            exibirValor(documento.getElementById('valor-esperado'), esperado ?? 'Não informado');
             exibirValor(documento.getElementById('valor-contado'), valorFechamento);
             const campoDiferenca = documento.getElementById('diferenca');
-            exibirValor(campoDiferenca, diferenca);
+            exibirValor(campoDiferenca, diferencaFinal ?? 'Não informado');
             campoDiferenca.className = `col-5 text-end fw-bold ${infoDiferenca.classe}`;
             documento.getElementById('tipo-diferenca').textContent = infoDiferenca.texto;
             resultadoFechamento.hidden = false;
             form.hidden = true;
             resumo.hidden = true;
             status.textContent = 'Turno fechado.';
+            if (String(perfil).toUpperCase() === 'CAIXA') navegar('/caixa/abertura.html');
         } catch (falha) {
             mostrarErro(erro, falha);
         } finally {

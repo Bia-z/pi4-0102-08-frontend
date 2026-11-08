@@ -110,7 +110,7 @@ export function cancelarPagamento(mesaId) {
 
 const MENSAGENS_ERRO_TRANSFERENCIA = {
     MESA_DESTINO_OCUPADA: 'A mesa de destino não está disponível. Escolha outra mesa.',
-    MESA_EM_PAGAMENTO: 'Não é possível transferir o pedido porque a mesa está em pagamento.',
+    MESA_EM_PAGAMENTO: 'Não é possível transferir o pedido porque a mesa de origem ou de destino está em pagamento.',
     PEDIDO_NAO_EM_ABERTO: 'Somente pedidos em aberto podem ser transferidos.',
     MESA_NAO_ENCONTRADA: 'A mesa de destino não foi encontrada. Atualize a lista e tente novamente.',
 };

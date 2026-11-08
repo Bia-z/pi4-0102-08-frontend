@@ -14,7 +14,7 @@ export function areaInicial(perfil) {
 }
 
 export function areaInicialAposLogin(perfil) {
-    if (String(perfil).toUpperCase() === 'CAIXA') return '/caixa/abertura.html';
+    if (String(perfil).toUpperCase() === 'CAIXA') return '/caixa/abertura.html?login=1';
     return areaInicial(perfil);
 }
 

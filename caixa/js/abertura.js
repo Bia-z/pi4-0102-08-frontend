@@ -8,11 +8,20 @@ export function converterValorAbertura(valor) {
     return Number.isFinite(numero) && numero >= 0 ? numero : null;
 }
 
+export function obterTurnoAtual(data = new Date()) {
+    const hora = data.getHours();
+    if (hora >= 6 && hora < 12) return 'MANHA';
+    if (hora >= 12 && hora < 18) return 'TARDE';
+    return 'NOITE';
+}
+
 export async function inicializarAbertura({
     documento = document,
     api = { abrirCaixa, obterCaixaAberto },
     fluxoLogin = false,
+    redirecionarAposAbertura = fluxoLogin,
     navegar = (url) => window.location.assign(url),
+    agora = () => new Date(),
 } = {}) {
     const form = documento.getElementById('form-abertura');
     const status = documento.getElementById('status-caixa');
@@ -25,6 +34,13 @@ export async function inicializarAbertura({
     const irParaCaixa = () => navegar('/caixa/index.html');
     form.hidden = true;
 
+    const exibirTurnoAberto = (caixa) => {
+        status.textContent = `Turno aberto: ${obterValor(caixa, ['turno'])} · Valor de abertura: ${
+            obterValor(caixa, ['valorAbertura'])}`;
+        form.hidden = true;
+        if (redirecionarAposAbertura) irParaCaixa();
+    };
+
     const consultarTurno = async () => {
         erro.hidden = true;
         sucesso.hidden = true;
@@ -33,13 +49,36 @@ export async function inicializarAbertura({
         try {
             const dados = await api.obterCaixaAberto();
             const caixa = dados?.caixa ?? dados;
-            status.textContent = `Turno aberto: ${obterValor(caixa, ['turno'])} · Valor de abertura: ${
-                obterValor(caixa, ['valorAbertura'])}`;
-            form.hidden = true;
-            if (fluxoLogin) irParaCaixa();
+            exibirTurnoAberto(caixa);
             return true;
         } catch (falha) {
-            if (falha.codigo === 'CAIXA_NAO_ABERTO') {
+            if (falha.codigo === 'CAIXA_NAO_ABERTO' || falha.status === 404) {
+                if (fluxoLogin) {
+                    status.textContent = 'Abrindo turno automaticamente...';
+                    try {
+                        await api.abrirCaixa({ valorAbertura: 0, turno: obterTurnoAtual(agora()) });
+                        sucesso.textContent = 'Turno aberto automaticamente com valor inicial de R$ 0,00.';
+                        sucesso.hidden = false;
+                        status.textContent = 'Turno aberto. Redirecionando...';
+                        irParaCaixa();
+                        return true;
+                    } catch (falhaAbertura) {
+                        if (falhaAbertura.codigo === 'CAIXA_JA_ABERTO') {
+                            try {
+                                const dados = await api.obterCaixaAberto();
+                                exibirTurnoAberto(dados?.caixa ?? dados);
+                                return true;
+                            } catch (falhaConsulta) {
+                                mostrarErro(erro, falhaConsulta);
+                            }
+                        } else {
+                            mostrarErro(erro, falhaAbertura);
+                        }
+                        status.textContent = '';
+                        tentarNovamente.hidden = false;
+                        return null;
+                    }
+                }
                 status.textContent = 'Nenhum turno aberto. Abra o caixa para continuar.';
                 form.hidden = false;
                 return false;
@@ -71,9 +110,9 @@ export async function inicializarAbertura({
             sucesso.hidden = false;
             status.textContent = `Turno aberto: ${campoTurno.value} · Valor de abertura: ${campoValor.value}`;
             form.hidden = true;
-            if (fluxoLogin) irParaCaixa();
+            if (redirecionarAposAbertura) irParaCaixa();
         } catch (falha) {
-            if (falha.codigo === 'CAIXA_JA_ABERTO' && fluxoLogin) {
+            if (falha.codigo === 'CAIXA_JA_ABERTO' && redirecionarAposAbertura) {
                 const turnoAberto = await consultarTurno();
                 if (turnoAberto === true || turnoAberto === null) return;
             }

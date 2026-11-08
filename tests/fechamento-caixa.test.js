@@ -25,6 +25,7 @@ function criarDocumento() {
         'fechar-turno',
         'recarregar-fechamento',
         'resumo-vendas',
+        'fechamento-valor-abertura',
         'fechamento-total-dinheiro',
         'fechamento-total-credito',
         'fechamento-total-debito',
@@ -71,7 +72,7 @@ test('consulta o relatório da data atual antes de liberar o fechamento e exibe 
         api: {
             obterCaixaAberto: async () => {
                 chamadas.push('aberto');
-                return { turno: 'TARDE' };
+                return { turno: 'TARDE', valorAbertura: 125.5 };
             },
             obterRelatorioCaixa: async (data) => {
                 chamadas.push(`relatorio:${data}`);
@@ -84,6 +85,7 @@ test('consulta o relatório da data atual antes de liberar o fechamento e exibe 
     assert.deepEqual(chamadas, ['aberto', 'relatorio:2026-11-08']);
     assert.equal(documento.elementos['resumo-vendas'].hidden, false);
     assert.equal(documento.elementos['form-fechamento'].hidden, false);
+    assert.match(documento.elementos['fechamento-valor-abertura'].textContent, /125,50/);
     assert.match(documento.elementos['fechamento-total-recebido'].textContent, /150,00/);
     assert.match(documento.elementos['fechamento-total-dinheiro'].textContent, /10,00/);
     assert.match(documento.elementos['fechamento-total-credito'].textContent, /20,00/);
@@ -135,6 +137,73 @@ for (const [diferenca, classificacao, classe] of [
         assert.equal(documento.elementos['senha-autorizacao'].value, '');
     });
 }
+
+test('aceita valores monetários formatados e calcula diferença quando a API omite o campo', async () => {
+    const documento = criarDocumento();
+    await inicializarFechamento({
+        documento,
+        api: {
+            obterCaixaAberto: async () => ({ turno: 'NOITE' }),
+            obterRelatorioCaixa: async () => relatorioExemplo(),
+            fecharCaixa: async () => ({ caixa: { valorEsperado: 'R$ 1.234,50' } }),
+        },
+    });
+
+    documento.elementos['valor-fechamento'].value = '1234,50';
+    documento.elementos['codigo-usuario'].value = 'autorizador';
+    documento.elementos['senha-autorizacao'].value = 'senha';
+    await documento.elementos['form-fechamento'].listeners.submit({ preventDefault() {} });
+
+    assert.equal(documento.elementos['resultado-fechamento'].hidden, false);
+    assert.match(documento.elementos['valor-esperado'].textContent, /1\.234,50/);
+    assert.match(documento.elementos['valor-contado'].textContent, /1\.234,50/);
+    assert.match(documento.elementos.diferenca.textContent, /0,00/);
+    assert.equal(documento.elementos['tipo-diferenca'].textContent, 'Sem diferença');
+});
+
+test('não bloqueia fechamento confirmado quando a resposta não contém valores de resumo', async () => {
+    const documento = criarDocumento();
+    await inicializarFechamento({
+        documento,
+        api: {
+            obterCaixaAberto: async () => ({ turno: 'NOITE' }),
+            obterRelatorioCaixa: async () => relatorioExemplo(),
+            fecharCaixa: async () => ({ mensagem: 'Turno fechado' }),
+        },
+    });
+
+    documento.elementos['valor-fechamento'].value = '10,00';
+    documento.elementos['codigo-usuario'].value = 'autorizador';
+    documento.elementos['senha-autorizacao'].value = 'senha';
+    await documento.elementos['form-fechamento'].listeners.submit({ preventDefault() {} });
+
+    assert.equal(documento.elementos['resultado-fechamento'].hidden, false);
+    assert.equal(documento.elementos['valor-esperado'].textContent, 'Não informado');
+    assert.equal(documento.elementos.diferenca.textContent, 'Não informado');
+    assert.equal(documento.elementos['status-caixa'].textContent, 'Turno fechado.');
+});
+
+test('redireciona CAIXA para abertura após confirmar fechamento', async () => {
+    const documento = criarDocumento();
+    const navegacoes = [];
+    await inicializarFechamento({
+        documento,
+        perfil: 'CAIXA',
+        navegar: (url) => navegacoes.push(url),
+        api: {
+            obterCaixaAberto: async () => ({ turno: 'NOITE' }),
+            obterRelatorioCaixa: async () => relatorioExemplo(),
+            fecharCaixa: async () => ({ mensagem: 'Turno fechado' }),
+        },
+    });
+
+    documento.elementos['valor-fechamento'].value = '10,00';
+    documento.elementos['codigo-usuario'].value = 'autorizador';
+    documento.elementos['senha-autorizacao'].value = 'senha';
+    await documento.elementos['form-fechamento'].listeners.submit({ preventDefault() {} });
+
+    assert.deepEqual(navegacoes, ['/caixa/abertura.html']);
+});
 
 test('mantém os dados do fechamento e explica credenciais inválidas sem confirmar', async () => {
     const documento = criarDocumento();

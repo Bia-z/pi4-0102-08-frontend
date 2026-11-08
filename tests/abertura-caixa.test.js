@@ -5,6 +5,7 @@ import { iniciarPaginaCaixa } from '../assets/js/core/guard.js';
 import {
     converterValorAbertura,
     inicializarAbertura,
+    obterTurnoAtual,
 } from '../caixa/js/abertura.js';
 
 class ElementoFalso {
@@ -48,8 +49,8 @@ function erroApi(codigo, status = 400) {
 }
 
 test('encaminha CAIXA à abertura pós-login e preserva as áreas dos demais perfis', () => {
-    assert.equal(areaInicialAposLogin('CAIXA'), '/caixa/abertura.html');
-    assert.equal(areaInicialAposLogin('caixa'), '/caixa/abertura.html');
+    assert.equal(areaInicialAposLogin('CAIXA'), '/caixa/abertura.html?login=1');
+    assert.equal(areaInicialAposLogin('caixa'), '/caixa/abertura.html?login=1');
     assert.equal(areaInicialAposLogin('admin'), '/admin/funcionarios.html');
     assert.equal(areaInicialAposLogin('garcom'), '/garcom/index.html');
 });
@@ -104,59 +105,70 @@ test('erro de rede não libera o caixa e permite repetir a consulta', async () =
     assert.deepEqual(navegacoes, ['/caixa/index.html']);
 });
 
-test('CAIXA sem turno aberto recebe o formulário obrigatório e valor padrão inválido não é enviado', async () => {
+test('CAIXA sem turno aberto abre automaticamente com valor inicial zero', async () => {
     const documento = criarDocumento();
-    let aberturas = 0;
+    const aberturas = [];
+    const navegacoes = [];
     await inicializarAbertura({
         documento,
         fluxoLogin: true,
-        navegar: () => assert.fail('não deve navegar antes da abertura'),
+        navegar: (url) => navegacoes.push(url),
+        agora: () => new Date(2026, 10, 8, 14),
         api: {
             obterCaixaAberto: async () => { throw erroApi('CAIXA_NAO_ABERTO', 404); },
-            abrirCaixa: async () => { aberturas += 1; },
+            abrirCaixa: async (dados) => { aberturas.push(dados); },
         },
     });
-    assert.equal(documento.elementos['form-abertura'].hidden, false);
+    assert.deepEqual(aberturas, [{ valorAbertura: 0, turno: 'TARDE' }]);
+    assert.deepEqual(navegacoes, ['/caixa/index.html']);
+    assert.equal(documento.elementos['form-abertura'].hidden, true);
     assert.equal(documento.elementos['tentar-novamente'].hidden, true);
-
-    documento.elementos['valor-abertura'].value = '10.123';
-    documento.elementos.turno.value = 'TARDE';
-    await documento.elementos['form-abertura'].listeners.submit({ preventDefault() {} });
-    assert.equal(aberturas, 0);
-    assert.equal(documento.elementos['erro-caixa'].hidden, false);
-    assert.match(documento.elementos['erro-caixa'].textContent, /válido/);
+    assert.match(documento.elementos['sucesso-caixa'].textContent, /R\$ 0,00/);
 });
 
-test('abertura confirmada envia valores e só então libera a tela principal', async () => {
+test('abertura automática falha sem liberar o caixa e oferece nova tentativa', async () => {
     const documento = criarDocumento();
-    const chamadas = [];
     const navegacoes = [];
-    documento.elementos['valor-abertura'].value = '100,50';
-    documento.elementos.turno.value = 'NOITE';
     await inicializarAbertura({
         documento,
         fluxoLogin: true,
         navegar: (url) => navegacoes.push(url),
         api: {
             obterCaixaAberto: async () => { throw erroApi('CAIXA_NAO_ABERTO', 404); },
-            abrirCaixa: async (corpo) => { chamadas.push(corpo); return { turno: 'NOITE' }; },
+            abrirCaixa: async () => { throw erroApi('VALOR_INVALIDO', 400); },
+        },
+    });
+    assert.deepEqual(navegacoes, []);
+    assert.equal(documento.elementos['form-abertura'].hidden, true);
+    assert.equal(documento.elementos['tentar-novamente'].hidden, false);
+    assert.equal(documento.elementos['erro-caixa'].hidden, false);
+});
+
+test('abertura manual do CAIXA após fechamento libera a área operacional', async () => {
+    const documento = criarDocumento();
+    const navegacoes = [];
+    documento.elementos['valor-abertura'].value = '50,00';
+    documento.elementos.turno.value = 'TARDE';
+    await inicializarAbertura({
+        documento,
+        redirecionarAposAbertura: true,
+        navegar: (url) => navegacoes.push(url),
+        api: {
+            obterCaixaAberto: async () => { throw erroApi('CAIXA_NAO_ABERTO', 404); },
+            abrirCaixa: async () => ({ turno: 'TARDE' }),
         },
     });
 
     await documento.elementos['form-abertura'].listeners.submit({ preventDefault() {} });
-    assert.deepEqual(chamadas, [{ valorAbertura: 100.5, turno: 'NOITE' }]);
     assert.deepEqual(navegacoes, ['/caixa/index.html']);
     assert.equal(documento.elementos['form-abertura'].hidden, true);
-    assert.equal(documento.elementos['sucesso-caixa'].hidden, false);
 });
 
-test('falha na abertura mantém o formulário e permite consultar de novo após conflito', async () => {
+test('conflito ao abrir automaticamente consulta o turno existente', async () => {
     const documento = criarDocumento();
     const navegacoes = [];
     let consultas = 0;
-    let aberturas = 0;
-    documento.elementos['valor-abertura'].value = '20.00';
-    documento.elementos.turno.value = 'MANHA';
+    const aberturas = [];
     await inicializarAbertura({
         documento,
         fluxoLogin: true,
@@ -167,35 +179,17 @@ test('falha na abertura mantém o formulário e permite consultar de novo após 
                 if (consultas === 1) throw erroApi('CAIXA_NAO_ABERTO', 404);
                 return { turno: 'MANHA', valorAbertura: 20 };
             },
-            abrirCaixa: async () => {
-                aberturas += 1;
+            abrirCaixa: async (dados) => {
+                aberturas.push(dados);
                 throw erroApi('CAIXA_JA_ABERTO', 409);
             },
         },
     });
 
-    await documento.elementos['form-abertura'].listeners.submit({ preventDefault() {} });
-    assert.equal(aberturas, 1);
+    assert.deepEqual(aberturas, [{ valorAbertura: 0, turno: obterTurnoAtual() }]);
     assert.equal(consultas, 2);
     assert.deepEqual(navegacoes, ['/caixa/index.html']);
     assert.equal(documento.elementos['form-abertura'].hidden, true);
-
-    const falhaDocumento = criarDocumento();
-    falhaDocumento.elementos['valor-abertura'].value = '20.00';
-    falhaDocumento.elementos.turno.value = 'MANHA';
-    await inicializarAbertura({
-        documento: falhaDocumento,
-        fluxoLogin: true,
-        navegar: () => assert.fail('falha não pode liberar acesso'),
-        api: {
-            obterCaixaAberto: async () => { throw erroApi('CAIXA_NAO_ABERTO', 404); },
-            abrirCaixa: async () => { throw erroApi('VALOR_INVALIDO', 400); },
-        },
-    });
-    await falhaDocumento.elementos['form-abertura'].listeners.submit({ preventDefault() {} });
-    assert.equal(falhaDocumento.elementos['form-abertura'].hidden, false);
-    assert.equal(falhaDocumento.elementos['abrir-turno'].disabled, false);
-    assert.match(falhaDocumento.elementos['erro-caixa'].textContent, /válido/);
 });
 
 test('valida valores monetários com até duas casas decimais', () => {
@@ -208,6 +202,12 @@ test('valida valores monetários com até duas casas decimais', () => {
     assert.equal(converterValorAbertura('1,2.3'), null);
 });
 
+test('determina o turno conforme o horário local', () => {
+    assert.equal(obterTurnoAtual(new Date(2026, 10, 8, 11)), 'MANHA');
+    assert.equal(obterTurnoAtual(new Date(2026, 10, 8, 12)), 'TARDE');
+    assert.equal(obterTurnoAtual(new Date(2026, 10, 8, 18)), 'NOITE');
+});
+
 test('bloqueia páginas do caixa sem turno e mantém o administrador fora dessa exigência', async () => {
     const fetchOriginal = globalThis.fetch;
     const storageOriginal = globalThis.localStorage;
@@ -217,8 +217,16 @@ test('bloqueia páginas do caixa sem turno e mantém o administrador fora dessa 
         usuario: { textContent: '' },
         'btn-sair': { addEventListener() {} },
     };
-    globalThis.document = { getElementById: (id) => elementos[id] };
-    globalThis.window = { location: { href: '' } };
+    const conteudo = { hidden: false };
+    const listenersJanela = {};
+    globalThis.document = {
+        getElementById: (id) => elementos[id],
+        querySelector: (seletor) => seletor === 'main' ? conteudo : null,
+    };
+    globalThis.window = {
+        location: { href: '' },
+        addEventListener: (tipo, listener) => { listenersJanela[tipo] = listener; },
+    };
     globalThis.localStorage = {
         getItem: () => JSON.stringify({ perfil: 'CAIXA', codigo: 'cx1', token: 'token' }),
     };
@@ -229,6 +237,24 @@ test('bloqueia páginas do caixa sem turno e mantém o administrador fora dessa 
     });
     try {
         assert.equal(await iniciarPaginaCaixa(), null);
+        assert.equal(globalThis.window.location.href, '/caixa/abertura.html');
+        assert.equal(conteudo.hidden, true);
+
+        globalThis.fetch = async () => ({
+            ok: true,
+            status: 200,
+            json: async () => ({ turno: 'TARDE' }),
+        });
+        assert.equal((await iniciarPaginaCaixa()).perfil, 'CAIXA');
+        assert.equal(conteudo.hidden, false);
+
+        globalThis.fetch = async () => ({
+            ok: false,
+            status: 404,
+            json: async () => ({ erro: 'CAIXA_NAO_ABERTO' }),
+        });
+        await listenersJanela.pageshow({ persisted: true });
+        assert.equal(conteudo.hidden, true);
         assert.equal(globalThis.window.location.href, '/caixa/abertura.html');
 
         globalThis.localStorage = {

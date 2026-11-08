@@ -92,6 +92,9 @@ export async function conectarAtualizacoesPedidos({
         onWebSocketError: () => {
             aoErro(new Error('Não foi possível conectar às atualizações dos pedidos.'));
         },
+        onWebSocketClose: () => {
+            aoErro(new Error('Conexão dos pedidos interrompida. Tentando reconectar...'));
+        },
     };
 
     if (criarCliente) {
