@@ -63,10 +63,10 @@
 </main>
 
 <script type="module">
-    import { iniciarPaginaPerfis } from '/assets/js/core/guard.js';
+    import { iniciarPaginaCaixa } from '/assets/js/core/guard.js';
     import { inicializarPagamento } from '/caixa/js/pagamento.js';
 
-    if (iniciarPaginaPerfis(['ADMIN', 'CAIXA'])) await inicializarPagamento();
+    if (await iniciarPaginaCaixa()) await inicializarPagamento();
 </script>
 </body>
 </html>

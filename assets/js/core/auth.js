@@ -13,6 +13,11 @@ export function areaInicial(perfil) {
     return AREAS[perfil];
 }
 
+export function areaInicialAposLogin(perfil) {
+    if (String(perfil).toUpperCase() === 'CAIXA') return '/caixa/abertura.html';
+    return areaInicial(perfil);
+}
+
 export function salvarSessao(resposta, codigo) {
     const sessao = {
         token: resposta.token,

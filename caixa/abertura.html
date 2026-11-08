@@ -14,22 +14,27 @@
 <main class="container py-4">
     <h1 class="h3">Abertura de turno</h1>
     <p id="status-caixa" class="text-secondary" role="status" aria-live="polite">Carregando...</p>
-    <p id="erro-caixa" class="alert alert-danger" role="alert" hidden></p>
+    <p id="erro-caixa" class="alert alert-danger" role="alert" aria-live="assertive" hidden></p>
     <p id="sucesso-caixa" class="alert alert-success" role="status" hidden></p>
+    <button id="tentar-novamente" class="btn btn-outline-primary mb-3" type="button" hidden>
+        Tentar consultar novamente
+    </button>
     <form id="form-abertura" class="card card-body col-md-6" hidden>
-        <label for="valor-abertura" class="form-label">Valor de abertura (R$)</label>
-        <input id="valor-abertura" class="form-control mb-3" type="number" min="0" step="0.01" value="0" required>
         <label for="turno" class="form-label">Turno</label>
         <select id="turno" class="form-select mb-3" required>
             <option value="MANHA">Manhã</option><option value="TARDE">Tarde</option><option value="NOITE">Noite</option>
         </select>
+        <label for="valor-abertura" class="form-label">Valor de fundo de caixa (R$)</label>
+        <input id="valor-abertura" class="form-control mb-3" type="text" inputmode="decimal"
+               placeholder="0,00" autocomplete="off" required>
         <button id="abrir-turno" class="btn btn-primary" type="submit">Abrir turno</button>
     </form>
 </main>
 <script type="module">
     import { iniciarPaginaPerfis } from '/assets/js/core/guard.js';
     import { inicializarAbertura } from '/caixa/js/abertura.js';
-    if (iniciarPaginaPerfis(['ADMIN', 'CAIXA'])) await inicializarAbertura();
+    const sessao = iniciarPaginaPerfis(['ADMIN', 'CAIXA']);
+    if (sessao) await inicializarAbertura({ fluxoLogin: String(sessao.perfil).toUpperCase() === 'CAIXA' });
 </script>
 </body>
 </html>

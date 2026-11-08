@@ -138,6 +138,26 @@ test('mantém o código e o status de erros de autorização retornados pela API
     }
 });
 
+test('rejeita respostas inesperadas nos endpoints de abertura e consulta de caixa', async () => {
+    const fetchOriginal = globalThis.fetch;
+    const storageOriginal = globalThis.localStorage;
+    globalThis.localStorage = { getItem: () => JSON.stringify({ token: 'token-caixa' }) };
+    globalThis.fetch = async () => ({
+        ok: true,
+        status: 200,
+        json: async () => [],
+    });
+    try {
+        await assert.rejects(obterCaixaAberto(), (erro) => erro.codigo === 'RESPOSTA_CAIXA_INVALIDA');
+        await assert.rejects(abrirCaixa({ valorAbertura: 10, turno: 'NOITE' }), (erro) => (
+            erro.codigo === 'RESPOSTA_CAIXA_INVALIDA'
+        ));
+    } finally {
+        globalThis.fetch = fetchOriginal;
+        globalThis.localStorage = storageOriginal;
+    }
+});
+
 test('baixa PDFs de relatório e comanda com token de sessão', async () => {
     const fetchOriginal = globalThis.fetch;
     const storageOriginal = globalThis.localStorage;

@@ -29,9 +29,9 @@
     </form>
 </main>
 <script type="module">
-    import { iniciarPaginaPerfis } from '/assets/js/core/guard.js';
+    import { iniciarPaginaCaixa } from '/assets/js/core/guard.js';
     import { inicializarConfiguracoes } from '/caixa/js/configuracoes.js';
-    const sessao = iniciarPaginaPerfis(['ADMIN', 'CAIXA']);
+    const sessao = await iniciarPaginaCaixa();
     if (sessao) await inicializarConfiguracoes({ perfil: sessao.perfil });
 </script>
 </body>

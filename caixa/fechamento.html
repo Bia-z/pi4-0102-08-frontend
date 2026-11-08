@@ -15,9 +15,28 @@
     <h1 class="h3">Fechamento de turno</h1>
     <p id="status-caixa" class="text-secondary" role="status" aria-live="polite">Carregando...</p>
     <p id="erro-caixa" class="alert alert-danger" role="alert" hidden></p>
+    <button id="recarregar-fechamento" class="btn btn-outline-primary mb-3" type="button" hidden>
+        Tentar carregar novamente
+    </button>
+    <section id="resumo-vendas" class="card mb-4" hidden aria-labelledby="titulo-resumo-vendas">
+        <div class="card-body">
+            <h2 id="titulo-resumo-vendas" class="h5">Resumo das vendas de hoje</h2>
+            <p>Total recebido: <strong id="fechamento-total-recebido"></strong></p>
+            <dl class="row mb-0">
+                <dt class="col-7">Dinheiro</dt><dd id="fechamento-total-dinheiro" class="col-5 text-end"></dd>
+                <dt class="col-7">Crédito</dt><dd id="fechamento-total-credito" class="col-5 text-end"></dd>
+                <dt class="col-7">Débito</dt><dd id="fechamento-total-debito" class="col-5 text-end"></dd>
+                <dt class="col-7">Pix</dt><dd id="fechamento-total-pix" class="col-5 text-end"></dd>
+                <dt class="col-7">Vale-alimentação</dt><dd id="fechamento-total-vale" class="col-5 text-end"></dd>
+                <dt class="col-7">Quantidade de pagamentos</dt>
+                <dd id="fechamento-quantidade-pagamentos" class="col-5 text-end"></dd>
+            </dl>
+        </div>
+    </section>
     <form id="form-fechamento" class="card card-body col-md-6" hidden>
         <label for="valor-fechamento" class="form-label">Valor contado no caixa (R$)</label>
-        <input id="valor-fechamento" class="form-control mb-3" type="number" min="0" step="0.01" required>
+        <input id="valor-fechamento" class="form-control mb-3" type="text" inputmode="decimal"
+               placeholder="0,00" autocomplete="off" required>
         <button id="fechar-turno" class="btn btn-primary" type="submit">Fechar turno</button>
     </form>
     <section id="resultado-fechamento" class="card mt-4" hidden aria-live="polite">
@@ -26,15 +45,16 @@
             <dl class="row mb-0">
                 <dt class="col-7">Valor esperado</dt><dd id="valor-esperado" class="col-5 text-end"></dd>
                 <dt class="col-7">Valor contado</dt><dd id="valor-contado" class="col-5 text-end"></dd>
-                <dt class="col-7">Diferença</dt><dd id="diferenca" class="col-5 text-end fw-bold"></dd>
+                <dt class="col-7">Diferença (<span id="tipo-diferenca"></span>)</dt>
+                <dd id="diferenca" class="col-5 text-end fw-bold"></dd>
             </dl>
         </div>
     </section>
 </main>
 <script type="module">
-    import { iniciarPaginaPerfis } from '/assets/js/core/guard.js';
+    import { iniciarPaginaCaixa } from '/assets/js/core/guard.js';
     import { inicializarFechamento } from '/caixa/js/fechamento.js';
-    if (iniciarPaginaPerfis(['ADMIN', 'CAIXA'])) await inicializarFechamento();
+    if (await iniciarPaginaCaixa()) await inicializarFechamento();
 </script>
 </body>
 </html>

@@ -16,6 +16,8 @@ export async function carregarMapaMesas({
     mapa = document.getElementById('mapa-mesas'),
     obterMapa = obterMapaMesas,
     permitirFechamento = false,
+    statusFiltro,
+    buscaNumero,
 } = {}) {
     if (!mapa.hasChildNodes()) mapa.textContent = 'Carregando mesas...';
 
@@ -23,12 +25,36 @@ export async function carregarMapaMesas({
         const dados = await obterMapa();
         mapa.replaceChildren();
 
-        if (!dados.mesas?.length) {
-            mapa.textContent = 'Nenhuma mesa disponível para exibição.';
+        const getElementById = globalThis.document?.getElementById;
+        const statusAtual = statusFiltro
+            ?? (typeof getElementById === 'function'
+                ? getElementById.call(globalThis.document, 'filtro-status-mesa')?.value
+                : null)
+            ?? 'todos';
+        const buscaAtual = buscaNumero
+            ?? (typeof getElementById === 'function'
+                ? getElementById.call(globalThis.document, 'buscar-mesa')?.value
+                : null)
+            ?? '';
+        const termoBusca = String(buscaAtual).trim().toLocaleLowerCase('pt-BR');
+        const mesas = (dados.mesas ?? []).filter((mesa) => {
+            const status = String(mesa.status ?? '').toLocaleLowerCase('pt-BR');
+            const atendeStatus = statusAtual === 'todos'
+                || status === statusAtual
+                || (statusAtual === 'ocupada' && status === 'em_pagamento');
+            const atendeBusca = String(mesa.numero ?? '').toLocaleLowerCase('pt-BR')
+                .includes(termoBusca);
+            return atendeStatus && atendeBusca;
+        });
+
+        if (!mesas.length) {
+            mapa.textContent = dados.mesas?.length
+                ? 'Nenhuma mesa corresponde aos filtros selecionados.'
+                : 'Nenhuma mesa disponível para exibição.';
             return;
         }
 
-        for (const mesa of dados.mesas) {
+        for (const mesa of mesas) {
             const card = document.createElement('article');
             card.className = 'card h-100';
 
@@ -66,10 +92,20 @@ export async function carregarMapaMesas({
 export function inicializarMapaMesas({
     mapa = document.getElementById('mapa-mesas'),
     botao = document.getElementById('atualizar-mesas'),
+    filtroStatus = document.getElementById('filtro-status-mesa'),
+    buscaMesa = document.getElementById('buscar-mesa'),
     obterMapa = obterMapaMesas,
     permitirFechamento = false,
 } = {}) {
-    const carregar = () => carregarMapaMesas({ mapa, obterMapa, permitirFechamento });
+    const carregar = () => carregarMapaMesas({
+        mapa,
+        obterMapa,
+        permitirFechamento,
+        statusFiltro: filtroStatus?.value || 'todos',
+        buscaNumero: buscaMesa?.value || '',
+    });
     botao.addEventListener('click', carregar);
+    filtroStatus?.addEventListener('change', carregar);
+    buscaMesa?.addEventListener('input', carregar);
     carregar();
 }

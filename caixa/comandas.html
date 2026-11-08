@@ -22,9 +22,9 @@
     <section id="visualizacao-comanda" class="card card-body" aria-live="polite"></section>
 </main>
 <script type="module">
-    import { iniciarPaginaPerfis } from '/assets/js/core/guard.js';
+    import { iniciarPaginaCaixa } from '/assets/js/core/guard.js';
     import { inicializarComandas } from '/caixa/js/comandas.js';
-    if (iniciarPaginaPerfis(['ADMIN', 'CAIXA'])) inicializarComandas();
+    if (await iniciarPaginaCaixa()) inicializarComandas();
 </script>
 </body>
 </html>

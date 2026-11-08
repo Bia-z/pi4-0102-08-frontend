@@ -1,12 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { obterMapaMesas, transferirPedidoParaMesa } from '../assets/js/core/api.js';
-import { carregarMapaMesas } from '../assets/js/core/mapa-mesas.js';
+import { carregarMapaMesas, inicializarMapaMesas } from '../assets/js/core/mapa-mesas.js';
 
 class ElementoFake {
     constructor() {
         this.children = [];
         this.textContent = '';
+        this.listeners = {};
+        this.value = '';
     }
 
     append(...elementos) {
@@ -24,6 +26,10 @@ class ElementoFake {
     replaceChildren(...elementos) {
         this.children = [...elementos];
         this.textContent = '';
+    }
+
+    addEventListener(tipo, callback) {
+        this.listeners[tipo] = callback;
     }
 }
 
@@ -187,6 +193,105 @@ test('mostra mensagem quando o mapa está vazio ou a API falha', async () => {
             obterMapa: async () => { throw new Error('Falha de rede'); },
         });
         assert.equal(mapa.textContent, 'Não foi possível carregar as mesas: Falha de rede');
+    } finally {
+        restaurarDocumento();
+    }
+});
+
+test('filtra mesas por status e inclui em pagamento no filtro de ocupadas', async () => {
+    const restaurarDocumento = instalarDocumento();
+    const mapa = new ElementoFake();
+    const dados = {
+        mesas: [
+            { numero: 1, status: 'disponivel', valorConsumido: 0 },
+            { numero: 2, status: 'ocupada', valorConsumido: 25 },
+            { numero: 3, status: 'em_pagamento', valorConsumido: 40 },
+            { numero: 4, status: 'reservada', valorConsumido: 0 },
+        ],
+    };
+    try {
+        await carregarMapaMesas({ mapa, obterMapa: async () => dados, statusFiltro: 'disponivel' });
+        assert.deepEqual(mapa.children.map((card) => card.children[0].children[0].textContent), ['Mesa 1']);
+
+        await carregarMapaMesas({ mapa, obterMapa: async () => dados, statusFiltro: 'ocupada' });
+        assert.deepEqual(mapa.children.map((card) => card.children[0].children[0].textContent), [
+            'Mesa 2', 'Mesa 3',
+        ]);
+
+        await carregarMapaMesas({ mapa, obterMapa: async () => dados, statusFiltro: 'reservada' });
+        assert.deepEqual(mapa.children.map((card) => card.children[0].children[0].textContent), ['Mesa 4']);
+    } finally {
+        restaurarDocumento();
+    }
+});
+
+test('pesquisa pelo número da mesa e informa quando não há correspondências', async () => {
+    const restaurarDocumento = instalarDocumento();
+    const mapa = new ElementoFake();
+    try {
+        await carregarMapaMesas({
+            mapa,
+            buscaNumero: ' 12 ',
+            obterMapa: async () => ({
+                mesas: [
+                    { numero: 12, status: 'disponivel', valorConsumido: 0 },
+                    { numero: 120, status: 'ocupada', valorConsumido: 10 },
+                    { numero: 3, status: 'reservada', valorConsumido: 0 },
+                ],
+            }),
+        });
+        assert.deepEqual(mapa.children.map((card) => card.children[0].children[0].textContent), [
+            'Mesa 12', 'Mesa 120',
+        ]);
+
+        await carregarMapaMesas({
+            mapa,
+            buscaNumero: '99',
+            obterMapa: async () => ({ mesas: [{ numero: 12, status: 'disponivel', valorConsumido: 0 }] }),
+        });
+        assert.equal(mapa.textContent, 'Nenhuma mesa corresponde aos filtros selecionados.');
+    } finally {
+        restaurarDocumento();
+    }
+});
+
+test('reaplica os filtros ao atualizar o mapa manualmente ou alterar o status', async () => {
+    const restaurarDocumento = instalarDocumento();
+    const mapa = new ElementoFake();
+    const botao = new ElementoFake();
+    const filtroStatus = new ElementoFake();
+    const buscaMesa = new ElementoFake();
+    filtroStatus.value = 'reservada';
+    buscaMesa.value = '8';
+    let chamadas = 0;
+    try {
+        inicializarMapaMesas({
+            mapa,
+            botao,
+            filtroStatus,
+            buscaMesa,
+            obterMapa: async () => {
+                chamadas += 1;
+                return {
+                    mesas: [
+                        { numero: 8, status: 'reservada', valorConsumido: 0 },
+                        { numero: 8, status: 'ocupada', valorConsumido: 10 },
+                        { numero: 9, status: 'reservada', valorConsumido: 0 },
+                    ],
+                };
+            },
+        });
+        await new Promise((resolve) => setImmediate(resolve));
+        assert.equal(mapa.children.length, 1);
+        assert.equal(mapa.children[0].children[0].children[0].textContent, 'Mesa 8');
+
+        filtroStatus.value = 'ocupada';
+        buscaMesa.value = '';
+        await filtroStatus.listeners.change();
+        assert.equal(mapa.children.length, 1);
+        assert.equal(mapa.children[0].children[0].children[1].textContent, 'Status: Ocupada');
+        await botao.listeners.click();
+        assert.equal(chamadas, 3);
     } finally {
         restaurarDocumento();
     }

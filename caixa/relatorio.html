@@ -40,9 +40,9 @@
     </section>
 </main>
 <script type="module">
-    import { iniciarPaginaPerfis } from '/assets/js/core/guard.js';
+    import { iniciarPaginaCaixa } from '/assets/js/core/guard.js';
     import { inicializarRelatorio } from '/caixa/js/relatorio.js';
-    if (iniciarPaginaPerfis(['ADMIN', 'CAIXA'])) inicializarRelatorio();
+    if (await iniciarPaginaCaixa()) inicializarRelatorio();
 </script>
 </body>
 </html>

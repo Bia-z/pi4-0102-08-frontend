@@ -204,12 +204,23 @@ function requisitarJsonAutenticado(caminho, metodo = 'GET', corpo) {
     return requisitarAutenticado(caminho, opcoes);
 }
 
-export function obterCaixaAberto() {
-    return requisitarJsonAutenticado('/caixa/aberto');
+function validarRespostaObjetoCaixa(dados) {
+    if (!dados || typeof dados !== 'object' || Array.isArray(dados)) {
+        const erro = new Error('O servidor retornou uma resposta inesperada para o caixa.');
+        erro.codigo = 'RESPOSTA_CAIXA_INVALIDA';
+        throw erro;
+    }
+    return dados;
 }
 
-export function abrirCaixa({ valorAbertura, turno }) {
-    return requisitarJsonAutenticado('/caixa/abrir', 'POST', { valorAbertura, turno });
+export async function obterCaixaAberto() {
+    return validarRespostaObjetoCaixa(await requisitarJsonAutenticado('/caixa/aberto'));
+}
+
+export async function abrirCaixa({ valorAbertura, turno }) {
+    return validarRespostaObjetoCaixa(
+        await requisitarJsonAutenticado('/caixa/abrir', 'POST', { valorAbertura, turno }),
+    );
 }
 
 export function fecharCaixa({ valorFechamento }) {

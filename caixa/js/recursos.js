@@ -1,3 +1,5 @@
+import { mensagemDeErro } from '../../assets/js/core/ui.js';
+
 export const MENSAGENS_CAIXA = {
     CAIXA_JA_ABERTO: 'Já existe um turno de caixa aberto.',
     CAIXA_NAO_ABERTO: 'Não há um turno de caixa aberto.',
@@ -7,7 +9,12 @@ export const MENSAGENS_CAIXA = {
 };
 
 export function mensagemErroCaixa(erro) {
-    return MENSAGENS_CAIXA[erro.codigo] || erro.message || erro.codigo || 'Não foi possível concluir a operação.';
+    if (MENSAGENS_CAIXA[erro.codigo]) return MENSAGENS_CAIXA[erro.codigo];
+    if (erro instanceof TypeError) return mensagemDeErro(erro);
+    if (erro.message && erro.message !== erro.codigo) return erro.message;
+    return erro.codigo
+        ? `Não foi possível concluir a operação (${erro.codigo}). Tente novamente.`
+        : 'Não foi possível concluir a operação. Tente novamente.';
 }
 
 export const FORMATADOR_MOEDA = new Intl.NumberFormat('pt-BR', {

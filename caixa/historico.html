@@ -22,9 +22,9 @@
     </div>
 </main>
 <script type="module">
-    import { iniciarPaginaPerfis } from '/assets/js/core/guard.js';
+    import { iniciarPaginaCaixa } from '/assets/js/core/guard.js';
     import { carregarHistorico } from '/caixa/js/historico.js';
-    if (iniciarPaginaPerfis(['ADMIN', 'CAIXA'])) await carregarHistorico();
+    if (await iniciarPaginaCaixa()) await carregarHistorico();
 </script>
 </body>
 </html>

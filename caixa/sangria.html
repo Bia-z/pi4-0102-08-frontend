@@ -35,9 +35,9 @@
     </div>
 </main>
 <script type="module">
-    import { iniciarPaginaPerfis } from '/assets/js/core/guard.js';
+    import { iniciarPaginaCaixa } from '/assets/js/core/guard.js';
     import { inicializarSangria } from '/caixa/js/sangria.js';
-    if (iniciarPaginaPerfis(['ADMIN', 'CAIXA'])) inicializarSangria();
+    if (await iniciarPaginaCaixa()) inicializarSangria();
 </script>
 </body>
 </html>
