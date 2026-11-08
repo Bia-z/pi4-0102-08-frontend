@@ -15,6 +15,7 @@ const FORMATO_MOEDA = new Intl.NumberFormat('pt-BR', {
 export async function carregarMapaMesas({
     mapa = document.getElementById('mapa-mesas'),
     obterMapa = obterMapaMesas,
+    permitirFechamento = false,
 } = {}) {
     if (!mapa.hasChildNodes()) mapa.textContent = 'Carregando mesas...';
 
@@ -47,6 +48,13 @@ export async function carregarMapaMesas({
             valor.textContent = `Consumido: ${FORMATO_MOEDA.format(mesa.valorConsumido)}`;
 
             corpo.append(titulo, status, valor);
+            if (permitirFechamento && mesa.status === 'ocupada' && mesa.mesaId != null) {
+                const fechar = document.createElement('a');
+                fechar.className = 'btn btn-primary mt-3';
+                fechar.href = `/caixa/pagamento.html?mesaId=${encodeURIComponent(mesa.mesaId)}`;
+                fechar.textContent = 'Fechar conta';
+                corpo.appendChild(fechar);
+            }
             card.appendChild(corpo);
             mapa.appendChild(card);
         }
@@ -59,8 +67,9 @@ export function inicializarMapaMesas({
     mapa = document.getElementById('mapa-mesas'),
     botao = document.getElementById('atualizar-mesas'),
     obterMapa = obterMapaMesas,
+    permitirFechamento = false,
 } = {}) {
-    const carregar = () => carregarMapaMesas({ mapa, obterMapa });
+    const carregar = () => carregarMapaMesas({ mapa, obterMapa, permitirFechamento });
     botao.addEventListener('click', carregar);
     carregar();
 }

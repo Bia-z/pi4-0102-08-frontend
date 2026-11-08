@@ -85,6 +85,29 @@ export function obterMapaMesas() {
     return requisitarAutenticado('/mesas/mapa', { method: 'GET' });
 }
 
+export function listarPedidos({ mesaId } = {}) {
+    const parametros = new URLSearchParams();
+    if (mesaId !== undefined && mesaId !== null) {
+        parametros.set('mesaId', mesaId);
+    }
+    const query = parametros.size ? `?${parametros}` : '';
+    return requisitarAutenticado(`/pedidos${query}`, { method: 'GET' });
+}
+
+export function iniciarPagamento(mesaId) {
+    return requisitarAutenticado(
+        `/mesas/${encodeURIComponent(mesaId)}/pagamento/iniciar`,
+        { method: 'POST' },
+    );
+}
+
+export function cancelarPagamento(mesaId) {
+    return requisitarAutenticado(
+        `/mesas/${encodeURIComponent(mesaId)}/pagamento/cancelar`,
+        { method: 'POST' },
+    );
+}
+
 const MENSAGENS_ERRO_TRANSFERENCIA = {
     MESA_DESTINO_OCUPADA: 'A mesa de destino não está disponível. Escolha outra mesa.',
     MESA_EM_PAGAMENTO: 'Não é possível transferir o pedido porque a mesa está em pagamento.',

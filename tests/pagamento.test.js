@@ -1,7 +1,91 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { baixarComprovantePedido, processarPagamento } from '../assets/js/core/api.js';
-import { configurarBotaoComprovante } from '../caixa/js/pagamento.js';
+import {
+    baixarComprovantePedido,
+    cancelarPagamento,
+    iniciarPagamento,
+    listarPedidos,
+    processarPagamento,
+} from '../assets/js/core/api.js';
+import {
+    calcularResumoPagamento,
+    calcularSaldoPagamento,
+    configurarBotaoComprovante,
+    mensagemErroPagamento,
+} from '../caixa/js/pagamento.js';
+
+test('calcula subtotal sem itens cancelados, taxa, desconto e saldo', () => {
+    const resumo = calcularResumoPagamento([
+        {
+            itens: [
+                { quantidade: 2, precoUnitario: 10, status: 'pronto' },
+                { quantidade: 1, precoUnitario: 50, status: 'cancelado' },
+            ],
+        },
+        { itens: [{ quantidade: 1, precoUnitario: 5.25, status: 'aguardando' }] },
+    ], 1.25);
+
+    assert.deepEqual(resumo, {
+        subtotalCentavos: 2525,
+        taxaCentavos: 253,
+        descontoCentavos: 125,
+        totalCentavos: 2653,
+    });
+    assert.deepEqual(calcularSaldoPagamento(resumo.totalCentavos, [
+        { formaPagamento: 'pix', centavos: 1000 },
+        { formaPagamento: 'dinheiro', centavos: 1000 },
+    ]), {
+        recebidoCentavos: 2000,
+        faltaCentavos: 653,
+        trocoCentavos: 0,
+    });
+    assert.deepEqual(calcularSaldoPagamento(resumo.totalCentavos, [
+        { formaPagamento: 'pix', centavos: 2000 },
+        { formaPagamento: 'dinheiro', centavos: 1000 },
+    ]), {
+        recebidoCentavos: 3000,
+        faltaCentavos: 0,
+        trocoCentavos: 347,
+    });
+    assert.equal(calcularSaldoPagamento(10000, [
+        { formaPagamento: 'credito', centavos: 11000 },
+    ]).trocoCentavos, 0);
+});
+
+test('exibe mensagem amigável quando o pagamento é insuficiente', () => {
+    assert.equal(
+        mensagemErroPagamento({ codigo: 'VALOR_PAGAMENTO_INSUFICIENTE' }),
+        'A soma dos pagamentos é menor que o total da conta.',
+    );
+});
+
+test('lista pedidos filtrados por mesa e inicia ou cancela o fechamento', async () => {
+    const fetchOriginal = globalThis.fetch;
+    const storageOriginal = globalThis.localStorage;
+    const requisicoes = [];
+    globalThis.localStorage = {
+        getItem: () => JSON.stringify({ token: 'token-caixa', perfil: 'caixa' }),
+    };
+    globalThis.fetch = async (url, opcoes) => {
+        requisicoes.push({ url, opcoes });
+        return { ok: true, status: 200, json: async () => [] };
+    };
+
+    try {
+        await listarPedidos({ mesaId: 12 });
+        await iniciarPagamento(12);
+        await cancelarPagamento(12);
+        assert.deepEqual(requisicoes.map(({ url, opcoes }) => [url, opcoes.method]), [
+            ['/api/pedidos?mesaId=12', 'GET'],
+            ['/api/mesas/12/pagamento/iniciar', 'POST'],
+            ['/api/mesas/12/pagamento/cancelar', 'POST'],
+        ]);
+        assert.ok(requisicoes.every(({ opcoes }) => opcoes.headers.Authorization.endsWith('token-caixa')));
+    } finally {
+        globalThis.fetch = fetchOriginal;
+        globalThis.localStorage = storageOriginal;
+    }
+});
 
 test('processa pagamento da mesa com pagamentos fracionados e desconto', async () => {
     const fetchOriginal = globalThis.fetch;

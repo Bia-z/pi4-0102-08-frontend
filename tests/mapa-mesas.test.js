@@ -150,6 +150,31 @@ test('renderiza número, status e valor consumido para cada mesa', async () => {
     }
 });
 
+test('exibe opção para fechar somente mesas ocupadas com identificação', async () => {
+    const restaurarDocumento = instalarDocumento();
+    const mapa = new ElementoFake();
+    try {
+        await carregarMapaMesas({
+            mapa,
+            permitirFechamento: true,
+            obterMapa: async () => ({
+                mesas: [
+                    { mesaId: 7, numero: 7, status: 'ocupada', valorConsumido: 42.5 },
+                    { mesaId: 8, numero: 8, status: 'em_pagamento', valorConsumido: 10 },
+                ],
+            }),
+        });
+
+        const [ocupada, emPagamento] = mapa.children;
+        const acaoFechar = ocupada.children[0].children[3];
+        assert.equal(acaoFechar.textContent, 'Fechar conta');
+        assert.equal(acaoFechar.href, '/caixa/pagamento.html?mesaId=7');
+        assert.equal(emPagamento.children[0].children.length, 3);
+    } finally {
+        restaurarDocumento();
+    }
+});
+
 test('mostra mensagem quando o mapa está vazio ou a API falha', async () => {
     const restaurarDocumento = instalarDocumento();
     const mapa = new ElementoFake();

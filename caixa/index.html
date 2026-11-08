@@ -40,13 +40,13 @@
     import { conectarAtualizacoesMesas } from '/assets/js/core/ws.js';
 
     if (iniciarPagina('caixa')) {
-        inicializarMapaMesas();
+        inicializarMapaMesas({ permitirFechamento: true });
         const status = document.getElementById('status-mesas-tempo-real');
 
         try {
             const cliente = await conectarAtualizacoesMesas({
                 aoConectar: () => { status.textContent = 'Atualizações em tempo real conectadas.'; },
-                aoAtualizar: () => carregarMapaMesas(),
+                aoAtualizar: () => carregarMapaMesas({ permitirFechamento: true }),
                 aoErro: (erro) => { status.textContent = `Atualizações em tempo real indisponíveis: ${erro.message}`; },
             });
             window.addEventListener('pagehide', () => cliente.deactivate());
