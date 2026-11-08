@@ -3,6 +3,7 @@ import { mensagemDeErro } from '../../assets/js/core/ui.js';
 export const MENSAGENS_CAIXA = {
     CAIXA_JA_ABERTO: 'Já existe um turno de caixa aberto.',
     CAIXA_NAO_ABERTO: 'Não há um turno de caixa aberto.',
+    CREDENCIAIS_INVALIDAS: 'Código/senha incorretos ou o perfil informado não pode autorizar o fechamento.',
     VALOR_INVALIDO: 'Informe um valor válido, igual ou maior que zero.',
     MOVIMENTACAO_INVALIDA: 'Confira o tipo, o valor e o motivo da movimentação.',
     TAXA_SERVICO_INVALIDA: 'A taxa de serviço deve estar entre 0 e 100%.',

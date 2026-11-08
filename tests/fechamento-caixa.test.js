@@ -33,6 +33,8 @@ function criarDocumento() {
         'fechamento-total-recebido',
         'fechamento-quantidade-pagamentos',
         'valor-fechamento',
+        'codigo-usuario',
+        'senha-autorizacao',
         'valor-esperado',
         'valor-contado',
         'diferenca',
@@ -113,8 +115,14 @@ for (const [diferenca, classificacao, classe] of [
         });
 
         documento.elementos['valor-fechamento'].value = '105,50';
+        documento.elementos['codigo-usuario'].value = 'autorizador';
+        documento.elementos['senha-autorizacao'].value = 'senha';
         await documento.elementos['form-fechamento'].listeners.submit({ preventDefault() {} });
-        assert.deepEqual(requisicoes, [{ valorFechamento: 105.5 }]);
+        assert.deepEqual(requisicoes, [{
+            valorFechamento: 105.5,
+            codigoUsuario: 'autorizador',
+            senha: 'senha',
+        }]);
         assert.equal(documento.elementos['resultado-fechamento'].hidden, false);
         assert.equal(documento.elementos['form-fechamento'].hidden, true);
         assert.match(documento.elementos['valor-esperado'].textContent, /100,25/);
@@ -124,26 +132,57 @@ for (const [diferenca, classificacao, classe] of [
         ));
         assert.equal(documento.elementos['tipo-diferenca'].textContent, classificacao);
         assert.ok(documento.elementos.diferenca.className.includes(classe));
+        assert.equal(documento.elementos['senha-autorizacao'].value, '');
     });
 }
 
-test('não confirma fechamento na interface até o backend aceitar a operação', async () => {
+test('mantém os dados do fechamento e explica credenciais inválidas sem confirmar', async () => {
     const documento = criarDocumento();
     await inicializarFechamento({
         documento,
         api: {
             obterCaixaAberto: async () => ({ turno: 'MANHA' }),
             obterRelatorioCaixa: async () => relatorioExemplo(),
-            fecharCaixa: async () => { throw Object.assign(new Error('CAIXA_NAO_ABERTO'), { codigo: 'CAIXA_NAO_ABERTO' }); },
+            fecharCaixa: async () => {
+                throw Object.assign(new Error('CREDENCIAIS_INVALIDAS'), { codigo: 'CREDENCIAIS_INVALIDAS' });
+            },
         },
     });
     documento.elementos['valor-fechamento'].value = '10.00';
+    documento.elementos['codigo-usuario'].value = 'caixa02';
+    documento.elementos['senha-autorizacao'].value = 'senha-errada';
     await documento.elementos['form-fechamento'].listeners.submit({ preventDefault() {} });
 
     assert.equal(documento.elementos['resultado-fechamento'].hidden, true);
     assert.equal(documento.elementos['form-fechamento'].hidden, false);
     assert.equal(documento.elementos['fechar-turno'].disabled, false);
-    assert.match(documento.elementos['erro-caixa'].textContent, /turno de caixa aberto/);
+    assert.match(documento.elementos['erro-caixa'].textContent, /Código\/senha incorretos|perfil informado/);
+    assert.equal(documento.elementos['valor-fechamento'].value, '10.00');
+    assert.equal(documento.elementos['codigo-usuario'].value, 'caixa02');
+    assert.equal(documento.elementos['senha-autorizacao'].value, '');
+});
+
+test('erro de rede no fechamento não confirma e mantém o valor e código para nova tentativa', async () => {
+    const documento = criarDocumento();
+    await inicializarFechamento({
+        documento,
+        api: {
+            obterCaixaAberto: async () => ({ turno: 'MANHA' }),
+            obterRelatorioCaixa: async () => relatorioExemplo(),
+            fecharCaixa: async () => { throw new TypeError('fetch failed'); },
+        },
+    });
+    documento.elementos['valor-fechamento'].value = '10.00';
+    documento.elementos['codigo-usuario'].value = 'caixa02';
+    documento.elementos['senha-autorizacao'].value = 'senha';
+    await documento.elementos['form-fechamento'].listeners.submit({ preventDefault() {} });
+
+    assert.equal(documento.elementos['resultado-fechamento'].hidden, true);
+    assert.equal(documento.elementos['form-fechamento'].hidden, false);
+    assert.equal(documento.elementos['valor-fechamento'].value, '10.00');
+    assert.equal(documento.elementos['codigo-usuario'].value, 'caixa02');
+    assert.equal(documento.elementos['senha-autorizacao'].value, '');
+    assert.match(documento.elementos['erro-caixa'].textContent, /Não foi possível conectar/);
 });
 
 test('mantém o fechamento bloqueado e oferece nova tentativa quando o relatório falha', async () => {

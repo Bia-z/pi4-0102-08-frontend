@@ -55,6 +55,8 @@ export async function inicializarFechamento({
     const erro = documento.getElementById('erro-caixa');
     const status = documento.getElementById('status-caixa');
     const botao = documento.getElementById('fechar-turno');
+    const campoCodigo = documento.getElementById('codigo-usuario');
+    const campoSenha = documento.getElementById('senha-autorizacao');
     const carregar = documento.getElementById('recarregar-fechamento');
     const resumo = documento.getElementById('resumo-vendas');
     const resultadoFechamento = documento.getElementById('resultado-fechamento');
@@ -110,9 +112,17 @@ export async function inicializarFechamento({
             mostrarErro(erro, { codigo: 'VALOR_INVALIDO' });
             return;
         }
+        const codigoUsuario = campoCodigo.value.trim();
+        const senha = campoSenha.value;
+        if (!codigoUsuario || !senha) {
+            mostrarErro(erro, {
+                message: 'Informe o código e a senha da pessoa que está autorizando o fechamento.',
+            });
+            return;
+        }
         botao.disabled = true;
         try {
-            const resultado = await api.fecharCaixa({ valorFechamento });
+            const resultado = await api.fecharCaixa({ valorFechamento, codigoUsuario, senha });
             const caixa = resultado.caixa ?? resultado;
             const esperado = numeroRelatorio(obterValor(caixa, [
                 'valorEsperado', 'valorCalculado', 'valorAberturaEsperado',
@@ -132,6 +142,7 @@ export async function inicializarFechamento({
         } catch (falha) {
             mostrarErro(erro, falha);
         } finally {
+            campoSenha.value = '';
             botao.disabled = false;
         }
     });

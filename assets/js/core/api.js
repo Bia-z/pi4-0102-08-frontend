@@ -223,8 +223,12 @@ export async function abrirCaixa({ valorAbertura, turno }) {
     );
 }
 
-export function fecharCaixa({ valorFechamento }) {
-    return requisitarJsonAutenticado('/caixa/fechar', 'POST', { valorFechamento });
+export function fecharCaixa({ valorFechamento, codigoUsuario, senha }) {
+    return requisitarJsonAutenticado('/caixa/fechar', 'POST', {
+        valorFechamento,
+        codigoUsuario,
+        senha,
+    });
 }
 
 export function obterHistoricoCaixa() {

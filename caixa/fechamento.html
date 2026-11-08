@@ -37,6 +37,11 @@
         <label for="valor-fechamento" class="form-label">Valor contado no caixa (R$)</label>
         <input id="valor-fechamento" class="form-control mb-3" type="text" inputmode="decimal"
                placeholder="0,00" autocomplete="off" required>
+        <label for="codigo-usuario" class="form-label">Código da pessoa que autoriza</label>
+        <input id="codigo-usuario" class="form-control mb-3" type="text" autocomplete="username" required>
+        <label for="senha-autorizacao" class="form-label">Senha da pessoa que autoriza</label>
+        <input id="senha-autorizacao" class="form-control mb-3" type="password"
+               autocomplete="current-password" required>
         <button id="fechar-turno" class="btn btn-primary" type="submit">Fechar turno</button>
     </form>
     <section id="resultado-fechamento" class="card mt-4" hidden aria-live="polite">

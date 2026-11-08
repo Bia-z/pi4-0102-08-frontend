@@ -119,6 +119,36 @@ test('usa endpoints autenticados e corpos exatos para os novos recursos de caixa
     }
 });
 
+test('envia valor e credenciais de autorização no fechamento autenticado', async () => {
+    const fetchOriginal = globalThis.fetch;
+    const storageOriginal = globalThis.localStorage;
+    let requisicao;
+    globalThis.localStorage = { getItem: () => JSON.stringify({ token: 'token-caixa' }) };
+    globalThis.fetch = async (url, opcoes) => {
+        requisicao = { url, opcoes };
+        return { ok: true, status: 200, json: async () => ({ valorEsperado: 50, diferenca: 0 }) };
+    };
+    try {
+        await fecharCaixa({
+            valorFechamento: 51.25,
+            codigoUsuario: 'admin01',
+            senha: 'senha-temporaria',
+        });
+        assert.equal(requisicao.url, '/api/caixa/fechar');
+        assert.equal(requisicao.opcoes.method, 'POST');
+        assert.equal(requisicao.opcoes.headers['Content-Type'], 'application/json');
+        assert.ok(requisicao.opcoes.headers.Authorization.endsWith('token-caixa'));
+        assert.deepEqual(JSON.parse(requisicao.opcoes.body), {
+            valorFechamento: 51.25,
+            codigoUsuario: 'admin01',
+            senha: 'senha-temporaria',
+        });
+    } finally {
+        globalThis.fetch = fetchOriginal;
+        globalThis.localStorage = storageOriginal;
+    }
+});
+
 test('mantém o código e o status de erros de autorização retornados pela API', async () => {
     const fetchOriginal = globalThis.fetch;
     const storageOriginal = globalThis.localStorage;
