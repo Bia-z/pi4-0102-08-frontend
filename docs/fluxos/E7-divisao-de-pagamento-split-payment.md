@@ -6,15 +6,16 @@
 
 1. O Operador do Caixa seleciona uma mesa ocupada e abre a tela de pagamento.
 2. O Frontend chama o Backend com o contrato `iniciarPagamento` (CT19).
-3. O Backend verifica se a mesa está ocupada e sem pagamento aberto por outro operador, altera o status para "em_pagamento" na tabela `tb_mesa` (CT6) registrando o operador responsável e publica o evento `statusMesaAtualizado` (CT21).
+3. O Backend verifica se a mesa está ocupada e sem pagamento aberto por outro operador, altera o status para "em_pagamento" na tabela `tb_mesa` (CT6) registrando o operador responsável e publica o evento `statusMesaAtualizado` (CT21) em `/topic/mesas` via WebSocket `/ws`.
 4. Os painéis do Garçom e do Caixa recebem o evento e passam a exibir a mesa como em pagamento. A partir daí, novos lançamentos nessa mesa são recusados (E3).
-5. O Operador do Caixa insere os pagamentos fracionados (ex.: parte no PIX e parte no Cartão de Crédito).
-6. O Frontend calcula os totais parciais e envia a requisição de pagamento ao Backend via contrato `processarPagamento` (CT14).
-7. O Backend confirma que a mesa está em pagamento e valida se a soma dos pagamentos fracionados cobre o valor total devido da mesa.
-8. O Backend insere as movimentações de pagamento na tabela `tb_pagamento` (CT15) e atualiza o pedido para "Pago".
-9. O Backend altera o status da mesa para "disponivel" na tabela `tb_mesa` (CT6) e publica o evento `statusMesaAtualizado` (CT21).
-10. O Backend retorna a confirmação da transação e o valor do troco (se houver).
-11. O Frontend exibe a confirmação do pagamento e libera a mesa na interface visual do caixa.
+5. A tela do Caixa lista os pedidos em aberto com `GET /api/pedidos?mesaId={mesaId}`, mostrando os itens e os preços praticados, subtotal, taxa de serviço configurada, desconto e total.
+6. O Operador do Caixa insere uma ou mais formas de pagamento (dinheiro, crédito, débito, Pix ou vale-alimentação). A tela calcula o valor recebido, quanto falta pagar e o troco.
+7. O Frontend envia `POST /api/mesas/{mesaId}/pagamento/processar` ao Backend via contrato `processarPagamento` (CT14), com `pagamentos` (cada um contendo `formaPagamento` e `valor`) e `desconto` opcional. A requisição usa o token da sessão no cabeçalho `Authorization: Bearer`.
+8. O Backend confirma que a mesa está em pagamento e valida se a soma dos pagamentos fracionados cobre o valor total devido da mesa.
+9. O Backend insere as movimentações de pagamento na tabela `tb_pagamento` (CT15) e atualiza o pedido para "Pago".
+10. O Backend altera o status da mesa para "disponivel" na tabela `tb_mesa` (CT6) e publica o evento `statusMesaAtualizado` (CT21) em `/topic/mesas`; os painéis autenticados atualizam o mapa ao receber o evento.
+11. O Backend retorna a confirmação da transação e o valor do troco (se houver).
+12. O Frontend exibe a confirmação do pagamento e libera a mesa na interface visual do caixa.
 
 ## Fluxos alternativos
 

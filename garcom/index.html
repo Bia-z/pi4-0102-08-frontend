@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RestManager | Garçom</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar bg-body-tertiary px-3">
+    <span class="navbar-brand mb-0 h1">RestManager · Garçom</span>
+    <div>
+        <span id="usuario" class="me-3 text-secondary"></span>
+        <button id="btn-sair" class="btn btn-outline-secondary btn-sm">Sair</button>
+    </div>
+</nav>
+
+<main class="container py-4">
+    <h2 class="h4">Área: Garçom</h2>
+    <p class="text-secondary">Consulte o cardápio ativo e acompanhe o mapa de mesas.</p>
+    <div id="painel-garcom">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2 class="h5 mb-0">Cardápio ativo</h2>
+            <button type="button" id="atualizar" class="btn btn-outline-primary btn-sm">Atualizar</button>
+        </div>
+        <div id="cardapio-alerta" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
+        <div id="cardapio-vazio" class="alert alert-info d-none" role="status">Não há produtos ativos no cardápio.</div>
+        <div id="cardapio-categorias" class="vstack gap-4 mb-5" aria-live="polite">Carregando cardápio...</div>
+
+        <section class="mb-4" aria-labelledby="titulo-mapa-mesas">
+            <h2 id="titulo-mapa-mesas" class="h5 mb-3">Mapa de mesas</h2>
+            <div id="mapa-mesas" class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3" aria-live="polite"></div>
+        </section>
+    </div>
+</main>
+
+<script type="module" src="/garcom/js/index.js"></script>
+</body>
+</html>

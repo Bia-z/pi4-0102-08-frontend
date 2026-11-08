@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RestManager | Fechamento da conta</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar bg-body-tertiary px-3">
+    <span class="navbar-brand mb-0 h1">RestManager · Caixa</span>
+</nav>
+
+<main class="container py-4">
+    <h1 id="mesa-numero" class="h3 mb-4">Fechamento da conta</h1>
+    <p id="erro-pagamento" class="alert alert-danger" role="alert" aria-live="assertive" hidden></p>
+    <p id="sucesso-pagamento" class="alert alert-success" role="status" aria-live="polite" hidden></p>
+    <a id="voltar-mapa" class="btn btn-outline-secondary mb-3" href="/caixa/index.html" hidden>
+        Voltar ao mapa
+    </a>
+
+    <section class="mb-4" aria-labelledby="titulo-itens">
+        <h2 id="titulo-itens" class="h5">Pedidos e itens em aberto</h2>
+        <ul id="itens-pedido" class="list-group"></ul>
+    </section>
+
+    <section class="card mb-4" aria-labelledby="titulo-resumo">
+        <div class="card-body">
+            <h2 id="titulo-resumo" class="h5">Resumo da conta</h2>
+            <dl class="row mb-0">
+                <dt class="col-7">Subtotal</dt><dd id="subtotal" class="col-5 text-end">R$ 0,00</dd>
+                <dt id="taxa-servico-label" class="col-7">Taxa de serviço</dt><dd id="taxa-servico" class="col-5 text-end">R$ 0,00</dd>
+                <dt class="col-7">Desconto</dt><dd id="desconto-resumo" class="col-5 text-end">R$ 0,00</dd>
+                <dt class="col-7">Total</dt><dd id="total" class="col-5 text-end fw-bold">R$ 0,00</dd>
+                <dt class="col-7">Valor recebido</dt><dd id="total-recebido" class="col-5 text-end">R$ 0,00</dd>
+                <dt class="col-7">Falta pagar</dt><dd id="valor-falta" class="col-5 text-end">R$ 0,00</dd>
+                <dt class="col-7">Troco</dt><dd id="valor-troco" class="col-5 text-end">R$ 0,00</dd>
+            </dl>
+        </div>
+    </section>
+
+    <form id="form-pagamento" novalidate hidden>
+        <h2 class="h5">Formas de pagamento</h2>
+        <label for="desconto" class="form-label">Desconto (R$)</label>
+        <input id="desconto" class="form-control mb-3" type="number" min="0" step="0.01" value="0">
+        <div id="pagamentos" aria-live="polite"></div>
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            <button id="adicionar-pagamento" type="button" class="btn btn-outline-primary">
+                Adicionar forma de pagamento
+            </button>
+            <button id="confirmar-pagamento" type="submit" class="btn btn-primary">
+                Confirmar pagamento
+            </button>
+            <button id="cancelar-pagamento" type="button" class="btn btn-outline-danger">
+                Cancelar fechamento
+            </button>
+            <button id="baixar-comprovante" type="button" class="btn btn-success" disabled>
+                Baixar comprovante
+            </button>
+        </div>
+        <p id="erro-comprovante" class="small text-danger mt-2" role="status"></p>
+    </form>
+</main>
+
+<script type="module">
+    import { iniciarPagina } from '/assets/js/core/guard.js';
+    import { inicializarPagamento } from '/caixa/js/pagamento.js';
+
+    if (iniciarPagina('caixa')) await inicializarPagamento();
+</script>
+</body>
+</html>
