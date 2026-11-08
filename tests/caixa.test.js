@@ -18,6 +18,7 @@ import { iniciarPaginaPerfis } from '../assets/js/core/guard.js';
 import { conectarAtualizacoesComandas } from '../assets/js/core/ws.js';
 import { inicializarAbertura } from '../caixa/js/abertura.js';
 import { validarTaxaServico, inicializarConfiguracoes } from '../caixa/js/configuracoes.js';
+import { carregarHistorico } from '../caixa/js/historico.js';
 import { inicializarRelatorio } from '../caixa/js/relatorio.js';
 
 class ElementoFalso {
@@ -63,6 +64,119 @@ function documentoFalso(ids) {
         createElement: () => new ElementoFalso(),
     };
 }
+
+test('exibe carregamento e renderiza os fechamentos retornados pela API', async () => {
+    const documento = documentoFalso([
+        'historico-caixa', 'erro-caixa', 'data-fechamento', 'limpar-filtro-data',
+    ]);
+    let concluirConsulta;
+    const consulta = carregarHistorico({
+        documento,
+        api: () => new Promise((resolve) => { concluirConsulta = resolve; }),
+    });
+
+    assert.equal(documento.elementos['historico-caixa'].children[0].children[0].textContent, 'Carregando histórico...');
+    concluirConsulta({
+        fechamentos: [{
+            id: 12,
+            operadorId: 3,
+            turno: 'NOITE',
+            status: 'FECHADO',
+            valorAbertura: 100,
+            abertoEm: '2026-11-08T18:00:00',
+            valorFechamento: 250,
+            valorEsperado: 245,
+            fechadoEm: '2026-11-08T23:00:00',
+        }],
+    });
+    await consulta;
+
+    const celulas = documento.elementos['historico-caixa'].children[0].children;
+    assert.deepEqual(celulas.map((celula) => celula.textContent), [
+        'NOITE',
+        '2026-11-08T18:00:00',
+        '2026-11-08T23:00:00',
+        '100',
+        '250',
+    ]);
+    assert.equal(documento.elementos['erro-caixa'].hidden, true);
+});
+
+test('exibe mensagem específica quando não há turnos fechados', async () => {
+    const documento = documentoFalso([
+        'historico-caixa', 'erro-caixa', 'data-fechamento', 'limpar-filtro-data',
+    ]);
+    await carregarHistorico({ documento, api: async () => ({ fechamentos: [] }) });
+
+    const linha = documento.elementos['historico-caixa'].children[0];
+    assert.equal(linha.children[0].textContent, 'Nenhum turno fechado.');
+    assert.equal(linha.children[0].colSpan, 5);
+    assert.equal(documento.elementos['erro-caixa'].hidden, true);
+});
+
+test('exibe falha HTTP do histórico em vez de tratar como lista vazia', async () => {
+    const documento = documentoFalso([
+        'historico-caixa', 'erro-caixa', 'data-fechamento', 'limpar-filtro-data',
+    ]);
+    documento.elementos['erro-caixa'].hidden = true;
+    await carregarHistorico({
+        documento,
+        api: async () => {
+            throw Object.assign(new Error('Acesso negado'), {
+                codigo: 'ACESSO_NEGADO',
+                status: 403,
+            });
+        },
+    });
+
+    assert.equal(documento.elementos['historico-caixa'].children.length, 0);
+    assert.equal(documento.elementos['erro-caixa'].hidden, false);
+    assert.equal(documento.elementos['erro-caixa'].textContent, 'Acesso negado');
+
+    await carregarHistorico({ documento, api: async () => ({ historico: [] }) });
+    assert.equal(documento.elementos['historico-caixa'].children.length, 0);
+    assert.equal(documento.elementos['erro-caixa'].hidden, false);
+    assert.match(documento.elementos['erro-caixa'].textContent, /resposta inesperada/);
+});
+
+test('filtra turnos pela data de fechamento e permite limpar o filtro', async () => {
+    const documento = documentoFalso([
+        'historico-caixa', 'erro-caixa', 'data-fechamento', 'limpar-filtro-data',
+    ]);
+    let chamadasApi = 0;
+    await carregarHistorico({
+        documento,
+        api: async () => {
+            chamadasApi += 1;
+            return {
+                fechamentos: [
+                    { turno: 'MANHÃ', fechadoEm: '2026-11-08T14:00:00', valorAbertura: 10, valorFechamento: 20 },
+                    { turno: 'NOITE', fechadoEm: '2026-11-09T23:00:00', valorAbertura: 30, valorFechamento: 40 },
+                ],
+            };
+        },
+    });
+
+    documento.elementos['data-fechamento'].value = '2026-11-09';
+    documento.elementos['data-fechamento'].listeners.change();
+    assert.equal(documento.elementos['historico-caixa'].children.length, 1);
+    assert.equal(documento.elementos['historico-caixa'].children[0].children[0].textContent, 'NOITE');
+
+    documento.elementos['data-fechamento'].value = '2026-11-10';
+    documento.elementos['data-fechamento'].listeners.change();
+    assert.equal(
+        documento.elementos['historico-caixa'].children[0].children[0].textContent,
+        'Nenhum turno fechado nesta data.',
+    );
+
+    documento.elementos['limpar-filtro-data'].listeners.click();
+    assert.equal(documento.elementos['data-fechamento'].value, '');
+    assert.deepEqual(
+        documento.elementos['historico-caixa'].children.map((linha) => linha.children[0].textContent),
+        ['MANHÃ', 'NOITE'],
+    );
+    assert.equal(chamadasApi, 1);
+});
 
 test('usa endpoints autenticados e corpos exatos para os novos recursos de caixa e comandas', async () => {
     const fetchOriginal = globalThis.fetch;
