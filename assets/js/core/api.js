@@ -194,3 +194,111 @@ export function processarPagamento(mesaId, { pagamentos, desconto } = {}) {
         body: JSON.stringify(corpo),
     });
 }
+
+function requisitarJsonAutenticado(caminho, metodo = 'GET', corpo) {
+    const opcoes = { method: metodo };
+    if (corpo !== undefined) {
+        opcoes.headers = { 'Content-Type': 'application/json' };
+        opcoes.body = JSON.stringify(corpo);
+    }
+    return requisitarAutenticado(caminho, opcoes);
+}
+
+export function obterCaixaAberto() {
+    return requisitarJsonAutenticado('/caixa/aberto');
+}
+
+export function abrirCaixa({ valorAbertura, turno }) {
+    return requisitarJsonAutenticado('/caixa/abrir', 'POST', { valorAbertura, turno });
+}
+
+export function fecharCaixa({ valorFechamento }) {
+    return requisitarJsonAutenticado('/caixa/fechar', 'POST', { valorFechamento });
+}
+
+export function obterHistoricoCaixa() {
+    return requisitarJsonAutenticado('/caixa/historico');
+}
+
+export function listarMovimentacoesCaixa() {
+    return requisitarJsonAutenticado('/caixa/movimentacoes');
+}
+
+export function criarMovimentacaoCaixa({ tipo, valor, motivo }) {
+    return requisitarJsonAutenticado('/caixa/movimentacoes', 'POST', { tipo, valor, motivo });
+}
+
+export function obterRelatorioCaixa(data) {
+    return requisitarJsonAutenticado(`/caixa/relatorios/${encodeURIComponent(data)}`);
+}
+
+export function obterConfiguracaoCaixa() {
+    return requisitarJsonAutenticado('/caixa/configuracao');
+}
+
+export function atualizarConfiguracaoCaixa({
+    nomeRestaurante,
+    taxaServicoPercentual,
+    imprimirComandaAoAceitar,
+}) {
+    return requisitarJsonAutenticado('/caixa/configuracao', 'PUT', {
+        nomeRestaurante,
+        taxaServicoPercentual,
+        imprimirComandaAoAceitar,
+    });
+}
+
+export function obterComanda(pedidoId) {
+    return requisitarJsonAutenticado(`/pedidos/${encodeURIComponent(pedidoId)}/comanda`);
+}
+
+async function baixarPdfAutenticado(caminho, nomeArquivo) {
+    const sessao = lerSessao();
+    if (!sessao?.token) {
+        sair();
+        const erro = new Error('TOKEN_AUSENTE');
+        erro.codigo = 'TOKEN_AUSENTE';
+        erro.status = 401;
+        throw erro;
+    }
+
+    const resposta = await fetch(`${API_BASE}${caminho}`, {
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + sessao.token },
+    });
+    if (!resposta.ok) {
+        const dados = await resposta.json().catch(() => ({}));
+        const erro = new Error(dados.erro || 'ERRO_DESCONHECIDO');
+        erro.codigo = dados.erro || 'ERRO_DESCONHECIDO';
+        erro.status = resposta.status;
+        if (erro.status === 401 && ['TOKEN_AUSENTE', 'TOKEN_INVALIDO'].includes(erro.codigo)) {
+            sair();
+        }
+        throw erro;
+    }
+
+    const arquivo = resposta.blob
+        ? await resposta.blob()
+        : new Blob([await resposta.arrayBuffer()], { type: 'application/pdf' });
+    const url = URL.createObjectURL(arquivo);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = nomeArquivo;
+    link.target = '_blank';
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+export function baixarRelatorioCaixaPdf(data) {
+    return baixarPdfAutenticado(
+        `/caixa/relatorios/${encodeURIComponent(data)}/pdf`,
+        `relatorio-caixa-${data}.pdf`,
+    );
+}
+
+export function baixarComandaPdf(pedidoId) {
+    return baixarPdfAutenticado(
+        `/pedidos/${encodeURIComponent(pedidoId)}/comanda/pdf`,
+        `comanda-${pedidoId}.pdf`,
+    );
+}

@@ -2,6 +2,12 @@
 
 **Feito quando:** Caixa visualiza status de todas as mesas e valor total consumido em cada uma.
 
+## Operações de turno, movimentações e relatórios
+
+Os perfis ADMIN e CAIXA consultam o turno atual em `GET /api/caixa/aberto`, abrem turnos em `POST /api/caixa/abrir` (valor inicial e turno MANHA, TARDE ou NOITE), fecham em `POST /api/caixa/fechar` (valor contado e resultado esperado/contado/diferença) e consultam `GET /api/caixa/historico`. Sangrias e reforços são registrados em `POST /api/caixa/movimentacoes` e listados no mesmo recurso por GET. O relatório diário usa `GET /api/caixa/relatorios/{AAAA-MM-DD}` e permite abrir ou baixar seu PDF autenticado.
+
+As configurações são consultáveis por ADMIN e CAIXA em `GET /api/caixa/configuracao`; somente ADMIN pode atualizar `PUT /api/caixa/configuracao`, incluindo a taxa de serviço entre 0 e 100% e a impressão de comanda ao aceitar um item.
+
 ## Passos
 
 1. O Operador do Caixa acessa a tela de Gestão de Mesas ou o Extrato da Conta.
