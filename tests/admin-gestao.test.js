@@ -242,6 +242,28 @@ test('reativa funcionário reenviando os dados com ativo verdadeiro e sem senha'
     }]]);
 });
 
+test('não tenta reativar funcionário sem CPF e telefone e orienta a editar', async () => {
+    instalarDocumento();
+    const tabela = new Elemento('tbody');
+    const alerta = alertaFake();
+    const chamadas = { atualizar: 0 };
+    await inicializarListaFuncionarios({
+        tabela,
+        alerta,
+        codigoLogado: 'admin',
+        listar: async () => [
+            { id: 6, codigo: 'inativo', nome: 'Usuário Inativo', email: 'i@x.com', cpf: null, telefone: null, perfil: 'garcom', ativo: false },
+        ],
+        atualizar: async () => { chamadas.atualizar += 1; },
+    });
+
+    await botoes(tabela.children[0], 'Reativar')[0].clicar();
+
+    assert.equal(chamadas.atualizar, 0);
+    assert.match(alerta.textContent, /CPF e telefone/);
+    assert.equal(alerta.classes.has('alert-warning'), true);
+});
+
 test('mostra a mensagem do último administrador ao falhar a desativação', async () => {
     const tela = telaFuncionarios({
         desativar: async () => { throw Object.assign(new Error('x'), { codigo: 'ULTIMO_ADMINISTRADOR_ATIVO' }); },

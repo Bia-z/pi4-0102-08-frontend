@@ -30,6 +30,10 @@ const MENSAGENS_ERRO = {
     ULTIMO_ADMINISTRADOR_ATIVO: 'Não é possível desativar o último administrador ativo.',
     CPF_DUPLICADO: 'Este CPF já está cadastrado em outro funcionário.',
     CODIGO_DUPLICADO: 'Este código já está cadastrado em outro funcionário.',
+    CPF_INVALIDO: 'O CPF deste funcionário é inválido. Abra Editar e corrija.',
+    TELEFONE_INVALIDO: 'O telefone deste funcionário é inválido. Abra Editar e corrija.',
+    EMAIL_INVALIDO: 'O e-mail deste funcionário é inválido. Abra Editar e corrija.',
+    EMAIL_DUPLICADO: 'Este e-mail já está cadastrado em outro funcionário.',
 };
 
 export function inicializarListaFuncionarios({
@@ -67,7 +71,21 @@ export function inicializarListaFuncionarios({
         );
     };
 
-    const reativarFuncionario = (usuario) => executar(
+    const reativarFuncionario = (usuario) => {
+        // Funcionários antigos (ex.: criados pelo seed) podem não ter CPF e telefone, que o
+        // backend exige para salvar. Nesse caso o admin completa os dados pela tela de edição.
+        if (!usuario.cpf || !usuario.telefone) {
+            mostrarAlerta(
+                alerta,
+                `${usuario.nome} não tem CPF e telefone cadastrados. Clique em Editar, complete os dados e marque "Funcionário ativo".`,
+                'warning',
+            );
+            return Promise.resolve();
+        }
+        return reativarComDados(usuario);
+    };
+
+    const reativarComDados = (usuario) => executar(
         () => atualizar(usuario.id, {
             codigo: usuario.codigo,
             nome: usuario.nome,
