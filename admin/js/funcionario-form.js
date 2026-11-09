@@ -1,4 +1,4 @@
-import { cadastrarUsuario } from '../../assets/js/core/api.js';
+import { atualizarUsuario, cadastrarUsuario, listarUsuarios } from '../../assets/js/core/api.js';
 import { iniciarPagina } from '../../assets/js/core/guard.js';
 
 const PERFIS = ['admin', 'garcom', 'cozinha', 'caixa'];
@@ -29,6 +29,9 @@ const MENSAGENS_ERRO = {
     PERFIL_INVALIDO: 'Selecione um dos perfis disponíveis.',
     TOKEN_AUSENTE: 'Sua sessão expirou. Entre novamente para continuar.',
     TOKEN_INVALIDO: 'Sua sessão expirou. Entre novamente para continuar.',
+    USUARIO_NAO_ENCONTRADO: 'Funcionário não encontrado. Volte para a lista e tente de novo.',
+    ADMINISTRADOR_NAO_PODE_SE_DESATIVAR: 'Você não pode desativar a sua própria conta.',
+    ULTIMO_ADMINISTRADOR_ATIVO: 'Não é possível desativar ou trocar o perfil do último administrador ativo.',
 };
 const ERROS_POR_CAMPO = {
     CPF_INVALIDO: ['cpf', 'Informe um CPF válido com 11 dígitos.'],
@@ -87,7 +90,7 @@ export function telefoneValido(valor) {
     );
 }
 
-function mostrarResumo(container, dados) {
+export function mostrarResumo(container, dados) {
     const resumo = document.getElementById('cadastro-resumo');
     resumo.replaceChildren();
 
@@ -109,21 +112,63 @@ function mostrarResumo(container, dados) {
 }
 
 export function inicializarCadastroFuncionario({
-    form = document.getElementById('form-funcionario'),
-    alerta = document.getElementById('cadastro-alerta'),
-    sucesso = document.getElementById('cadastro-sucesso'),
-    botao = document.getElementById('btn-cadastrar'),
-    cadastrar = cadastrarUsuario,
-} = {}) {
+                                                   form = document.getElementById('form-funcionario'),
+                                                   alerta = document.getElementById('cadastro-alerta'),
+                                                   sucesso = document.getElementById('cadastro-sucesso'),
+                                                   botao = document.getElementById('btn-cadastrar'),
+                                                   cadastrar = cadastrarUsuario,
+                                                   usuarioId = null,
+                                                   atualizar = atualizarUsuario,
+                                                   listar = listarUsuarios,
+                                               } = {}) {
     if (!form) return;
 
+    // Com usuarioId a mesma tela edita um funcionário existente (a senha vira opcional).
+    const edicao = usuarioId !== null && usuarioId !== undefined;
+    const rotuloBotao = edicao ? 'Salvar alterações' : 'Cadastrar funcionário';
     let enviando = false;
+    const nomesCampos = ['nome', 'email', 'cpf', 'telefone', 'codigo', 'perfil', 'senha', 'confirmar-senha'];
+    if (edicao) nomesCampos.push('ativo');
     const campos = Object.fromEntries(
-        ['nome', 'email', 'cpf', 'telefone', 'codigo', 'perfil', 'senha', 'confirmar-senha'].map((nome) => [
-            nome,
-            form.elements.namedItem(nome),
-        ]),
+        nomesCampos.map((nome) => [nome, form.elements.namedItem(nome)]),
     );
+    const obrigatorios = edicao
+        ? ['nome', 'cpf', 'telefone', 'perfil', 'codigo']
+        : CAMPOS_OBRIGATORIOS;
+
+    const preencher = (usuario) => {
+        campos.nome.value = usuario.nome ?? '';
+        campos.email.value = usuario.email ?? '';
+        campos.cpf.value = usuario.cpf ?? '';
+        campos.telefone.value = usuario.telefone ?? '';
+        campos.codigo.value = usuario.codigo ?? '';
+        campos.perfil.value = usuario.perfil ?? '';
+        campos.ativo.checked = Boolean(usuario.ativo);
+    };
+
+    const mostrarAlertaErro = (mensagem) => {
+        alerta.textContent = mensagem;
+        alerta.classList.remove('d-none');
+    };
+
+    const carregarFuncionario = async () => {
+        botao.disabled = true;
+        try {
+            const lista = await listar();
+            const usuario = Array.isArray(lista)
+                ? lista.find((item) => String(item.id) === String(usuarioId))
+                : null;
+            if (!usuario) {
+                mostrarAlertaErro(MENSAGENS_ERRO.USUARIO_NAO_ENCONTRADO);
+                return;
+            }
+            preencher(usuario);
+            botao.disabled = false;
+        } catch (erro) {
+            mostrarAlertaErro(MENSAGENS_ERRO[erro.codigo]
+                || 'Não foi possível carregar os dados do funcionário.');
+        }
+    };
 
     form.addEventListener('submit', async (evento) => {
         evento.preventDefault();
@@ -135,7 +180,7 @@ export function inicializarCadastroFuncionario({
 
         limparErros(campos);
         let valido = true;
-        CAMPOS_OBRIGATORIOS.forEach((nome) => {
+        obrigatorios.forEach((nome) => {
             const campo = campos[nome];
             if (!campo.value.trim()) {
                 marcarErroCampo(nome, 'Este campo é obrigatório.');
@@ -162,7 +207,10 @@ export function inicializarCadastroFuncionario({
         campos['confirmar-senha'].classList.remove('is-invalid');
         campos['confirmar-senha'].removeAttribute('aria-invalid');
         erroConfirmacao.textContent = '';
-        if (!campos['confirmar-senha'].value.trim()) {
+        const senhaPreenchida = campos.senha.value.trim() || campos['confirmar-senha'].value.trim();
+        if (edicao && !senhaPreenchida) {
+            // edição sem troca de senha: não há o que confirmar
+        } else if (!campos['confirmar-senha'].value.trim()) {
             campos['confirmar-senha'].classList.add('is-invalid');
             campos['confirmar-senha'].setAttribute('aria-invalid', 'true');
             erroConfirmacao.textContent = 'Este campo é obrigatório.';
@@ -180,8 +228,14 @@ export function inicializarCadastroFuncionario({
             cpf: campos.cpf.value.trim(),
             telefone: campos.telefone.value.trim(),
             perfil: campos.perfil.value,
-            senha: campos.senha.value,
         };
+        if (!edicao || campos.senha.value.trim()) {
+            usuario.senha = campos.senha.value;
+        }
+        if (edicao) {
+            usuario.codigo = campos.codigo.value.trim();
+            usuario.ativo = campos.ativo.checked;
+        }
         if (campos.email.value.trim()) {
             usuario.email = campos.email.value.trim();
         }
@@ -191,14 +245,18 @@ export function inicializarCadastroFuncionario({
 
         enviando = true;
         botao.disabled = true;
-        botao.textContent = 'Cadastrando...';
+        botao.textContent = edicao ? 'Salvando...' : 'Cadastrando...';
         campos.senha.value = '';
         campos['confirmar-senha'].value = '';
         try {
-            const requisicao = cadastrar(usuario);
+            const requisicao = edicao ? atualizar(usuarioId, usuario) : cadastrar(usuario);
             delete usuario.senha;
             const dados = await requisicao;
-            form.reset();
+            if (edicao) {
+                preencher(dados);
+            } else {
+                form.reset();
+            }
             mostrarResumo(sucesso, dados);
         } catch (erro) {
             const erroCampo = ERROS_POR_CAMPO[erro.codigo];
@@ -206,20 +264,38 @@ export function inicializarCadastroFuncionario({
                 marcarErroCampo(...erroCampo);
             } else {
                 alerta.textContent = MENSAGENS_ERRO[erro.codigo]
-                    || 'Não foi possível cadastrar o funcionário. Tente novamente.';
+                    || (edicao
+                        ? 'Não foi possível salvar as alterações. Tente novamente.'
+                        : 'Não foi possível cadastrar o funcionário. Tente novamente.');
                 alerta.classList.remove('d-none');
             }
         } finally {
             enviando = false;
             botao.disabled = false;
-            botao.textContent = 'Cadastrar funcionário';
+            botao.textContent = rotuloBotao;
         }
     });
+
+    return edicao ? carregarFuncionario() : undefined;
+}
+
+// Ajusta os textos da tela quando ela abre com ?id= (modo edição).
+function prepararTelaEdicao() {
+    document.title = 'RestManager | Editar funcionário';
+    document.getElementById('titulo-pagina').textContent = 'Editar funcionário';
+    document.getElementById('sucesso-titulo').textContent = 'Funcionário atualizado com sucesso';
+    document.getElementById('btn-cadastrar').textContent = 'Salvar alterações';
+    document.getElementById('codigo-opcional').classList.add('d-none');
+    document.getElementById('codigo-ajuda').textContent = 'O código é usado para entrar no sistema.';
+    document.getElementById('senha-ajuda-edicao').classList.remove('d-none');
+    document.getElementById('grupo-ativo').classList.remove('d-none');
 }
 
 if (typeof document !== 'undefined') {
     const form = document.getElementById('form-funcionario');
     if (form && iniciarPagina('admin')) {
-        inicializarCadastroFuncionario({ form });
+        const id = new URLSearchParams(window.location.search).get('id');
+        if (id) prepararTelaEdicao();
+        inicializarCadastroFuncionario({ form, usuarioId: id });
     }
 }

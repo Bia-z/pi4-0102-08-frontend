@@ -73,6 +73,59 @@ export function cadastrarMesa(mesa) {
     });
 }
 
+function enviarJson(caminho, metodo, corpo) {
+    return requisitarAutenticado(caminho, {
+        method: metodo,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpo),
+    });
+}
+
+// ---- Funcionários (só administrador) ----
+export function listarUsuarios() {
+    return requisitarAutenticado('/usuarios', { method: 'GET' });
+}
+
+export function atualizarUsuario(id, usuario) {
+    return enviarJson(`/usuarios/${encodeURIComponent(id)}`, 'PUT', usuario);
+}
+
+// O backend desativa (ativo = false); o registro continua no banco para manter o histórico.
+export function desativarUsuario(id) {
+    return requisitarAutenticado(`/usuarios/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+// ---- Itens do cardápio (produtos) ----
+export function listarProdutos() {
+    return requisitarAutenticado('/produtos', { method: 'GET' });
+}
+
+export function atualizarProduto(id, produto) {
+    return enviarJson(`/produtos/${encodeURIComponent(id)}`, 'PUT', produto);
+}
+
+export function desativarProduto(id) {
+    return requisitarAutenticado(`/produtos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+// ---- Ingredientes ----
+// /ingredientes devolve só os ativos; /ingredientes/gerenciamento devolve todos.
+export function listarIngredientesGerenciamento() {
+    return requisitarAutenticado('/ingredientes/gerenciamento', { method: 'GET' });
+}
+
+export function cadastrarIngrediente(ingrediente) {
+    return enviarJson('/ingredientes', 'POST', ingrediente);
+}
+
+export function atualizarIngrediente(id, ingrediente) {
+    return enviarJson(`/ingredientes/${encodeURIComponent(id)}`, 'PUT', ingrediente);
+}
+
+export function desativarIngrediente(id) {
+    return requisitarAutenticado(`/ingredientes/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
 export function obterCardapio() {
     return requisitarAutenticado('/cardapio', { method: 'GET' });
 }
@@ -252,10 +305,10 @@ export function obterConfiguracaoCaixa() {
 }
 
 export function atualizarConfiguracaoCaixa({
-    nomeRestaurante,
-    taxaServicoPercentual,
-    imprimirComandaAoAceitar,
-}) {
+                                               nomeRestaurante,
+                                               taxaServicoPercentual,
+                                               imprimirComandaAoAceitar,
+                                           }) {
     return requisitarJsonAutenticado('/caixa/configuracao', 'PUT', {
         nomeRestaurante,
         taxaServicoPercentual,

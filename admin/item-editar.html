@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RestManager | Editar item</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-expand bg-body-tertiary px-3">
+    <a class="navbar-brand mb-0 h1 text-decoration-none" href="/admin/funcionarios.html">RestManager · Administrador</a>
+    <ul class="navbar-nav me-auto">
+        <li class="nav-item"><a class="nav-link" href="/admin/funcionarios.html">Funcionários</a></li>
+        <li class="nav-item"><a class="nav-link active" href="/admin/itens.html">Itens</a></li>
+        <li class="nav-item"><a class="nav-link" href="/admin/ingredientes.html">Ingredientes</a></li>
+        <li class="nav-item"><a class="nav-link" href="/admin/mesa-form.html">Mesas</a></li>
+    </ul>
+    <div>
+        <span id="usuario" class="me-3 text-secondary"></span>
+        <button id="btn-sair" class="btn btn-outline-secondary btn-sm" type="button">Sair</button>
+    </div>
+</nav>
+
+<main class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <a href="/admin/itens.html" class="link-secondary">Voltar para itens</a>
+            <h1 class="h3 mt-3 mb-4">Editar item</h1>
+
+            <div id="produto-alerta" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
+            <div id="produto-sucesso" class="alert alert-success d-none" role="status" aria-live="polite"></div>
+
+            <form id="form-produto" class="card card-body shadow-sm d-none" novalidate>
+                <div class="mb-3">
+                    <label for="nome" class="form-label">Nome</label>
+                    <input id="nome" name="nome" class="form-control" type="text" maxlength="120" required aria-describedby="nome-erro">
+                    <div id="nome-erro" class="invalid-feedback"></div>
+                </div>
+                <div class="mb-3">
+                    <label for="descricao" class="form-label">Descrição <span class="text-secondary">(opcional)</span></label>
+                    <textarea id="descricao" name="descricao" class="form-control" rows="3" maxlength="500"></textarea>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="preco" class="form-label">Preço (R$)</label>
+                        <input id="preco" name="preco" class="form-control" type="number" min="0.01" step="0.01" required aria-describedby="preco-erro">
+                        <div id="preco-erro" class="invalid-feedback"></div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="categoriaId" class="form-label">Categoria</label>
+                        <select id="categoriaId" name="categoriaId" class="form-select" required aria-describedby="categoriaId-erro"></select>
+                        <div id="categoriaId-erro" class="invalid-feedback"></div>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="imagemUrl" class="form-label">Imagem (URL ou caminho) <span class="text-secondary">(opcional)</span></label>
+                    <input id="imagemUrl" name="imagemUrl" class="form-control" type="text" maxlength="255">
+                </div>
+                <div class="mb-3">
+                    <label for="ingredientes" class="form-label">Ingredientes</label>
+                    <select id="ingredientes" name="ingredientes" class="form-select" multiple size="6" required aria-describedby="ingredientes-ajuda ingredientes-erro"></select>
+                    <div id="ingredientes-ajuda" class="form-text">Use Ctrl (Windows) ou Command (Mac) para marcar vários. Ingredientes inativos só aparecem se o item já os usa.</div>
+                    <div id="ingredientes-erro" class="invalid-feedback"></div>
+                </div>
+                <div class="form-check mb-4">
+                    <input id="ativo" name="ativo" class="form-check-input" type="checkbox" checked>
+                    <label for="ativo" class="form-check-label">Item ativo (aparece no cardápio)</label>
+                </div>
+                <button id="btn-salvar-produto" class="btn btn-primary" type="submit" disabled>Salvar alterações</button>
+            </form>
+        </div>
+    </div>
+</main>
+
+<script type="module" src="/admin/js/item-editar.js"></script>
+</body>
+</html>
