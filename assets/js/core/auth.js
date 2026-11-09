@@ -1,20 +1,43 @@
-// Textos de erro mostrados para o usuário.
-const MENSAGENS = {
-    CREDENCIAIS_INVALIDAS: 'Código ou senha incorretos.',
-    USUARIO_INATIVO: 'Este usuário está inativo. Fale com o administrador.',
-    MESA_EM_PAGAMENTO: 'Esta mesa está em pagamento no caixa. Só é possível lançar novos itens se o pagamento for cancelado.',
-    MESA_NAO_ENCONTRADA: 'A mesa não foi encontrada. Atualize a lista de mesas.',
-    PRODUTO_NAO_ENCONTRADO: 'Um dos produtos não está mais disponível. Atualize o cardápio e tente de novo.',
-    QUANTIDADE_INVALIDA: 'A quantidade de cada item deve ser de pelo menos 1.',
-    ITENS_PEDIDO_OBRIGATORIOS: 'Adicione pelo menos um item ao pedido.',
-    USUARIO_NAO_ENCONTRADO: 'Não foi possível identificar o garçom. Saia e entre novamente.',
-    ACESSO_NEGADO: 'Você não tem permissão para fazer isso.',
+// Guarda e lê os dados de quem fez login (token, perfil e código).
+const CHAVE = 'restmanager.sessao';
+
+// Tela inicial de cada perfil
+const AREAS = {
+    admin: '/admin/funcionarios.html',
+    garcom: '/garcom/index.html',
+    cozinha: '/cozinha/index.html',
+    caixa: '/caixa/index.html',
 };
 
-export function mensagemDeErro(erro) {
-    // fetch lança TypeError quando não consegue falar com o servidor
-    if (erro instanceof TypeError) {
-        return 'Não foi possível conectar ao servidor. Tente de novo.';
+export function areaInicial(perfil) {
+    return AREAS[perfil];
+}
+
+export function areaInicialAposLogin(perfil) {
+    if (String(perfil).toUpperCase() === 'CAIXA') return '/caixa/abertura.html?login=1';
+    return areaInicial(perfil);
+}
+
+export function salvarSessao(resposta, codigo) {
+    const sessao = {
+        token: resposta.token,
+        tipoToken: resposta.tipoToken,
+        perfil: resposta.perfil,
+        codigo: codigo,
+        usuarioId: resposta.usuarioId,
+    };
+    localStorage.setItem(CHAVE, JSON.stringify(sessao));
+}
+
+export function lerSessao() {
+    try {
+        return JSON.parse(localStorage.getItem(CHAVE));
+    } catch {
+        return null;
     }
-    return MENSAGENS[erro.codigo] || 'Algo deu errado. Tente de novo.';
+}
+
+export function sair() {
+    localStorage.removeItem(CHAVE);
+    window.location.href = '/index.html';
 }
