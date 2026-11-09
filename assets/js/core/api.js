@@ -138,13 +138,21 @@ export function obterMapaMesas() {
     return requisitarAutenticado('/mesas/mapa', { method: 'GET' });
 }
 
-export function listarPedidos({ mesaId } = {}) {
+export function listarPedidos({ mesaId, garcomId } = {}) {
     const parametros = new URLSearchParams();
     if (mesaId !== undefined && mesaId !== null) {
         parametros.set('mesaId', mesaId);
     }
+    if (garcomId !== undefined && garcomId !== null) {
+        parametros.set('garcomId', garcomId);
+    }
     const query = parametros.size ? `?${parametros}` : '';
     return requisitarAutenticado(`/pedidos${query}`, { method: 'GET' });
+}
+
+// CT7 criarPedido: POST /api/pedidos
+export function criarPedido({ mesaId, garcomId, itens }) {
+    return enviarJson('/pedidos', 'POST', { mesaId, garcomId, itens });
 }
 
 export function iniciarPagamento(mesaId) {
