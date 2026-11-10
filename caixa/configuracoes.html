@@ -31,8 +31,20 @@
         <label for="taxa-servico" class="form-label">Taxa de serviço (%)</label>
         <input id="taxa-servico" class="form-control mb-3" type="number" min="0" max="100" step="0.01" required>
         <div class="form-check mb-3">
+            <input id="taxa-servico-ativa" class="form-check-input" type="checkbox">
+            <label for="taxa-servico-ativa" class="form-check-label">Cobrar taxa de serviço</label>
+        </div>
+        <div class="form-check mb-2">
             <input id="imprimir-comanda" class="form-check-input" type="checkbox">
-            <label for="imprimir-comanda" class="form-check-label">Imprimir comanda ao aceitar item</label>
+            <label for="imprimir-comanda" class="form-check-label">Imprimir comanda na cozinha ao aceitar item</label>
+        </div>
+        <div class="form-check mb-2">
+            <input id="comanda-unica" class="form-check-input" type="checkbox">
+            <label for="comanda-unica" class="form-check-label">Imprimir todos os pratos do pedido em uma comanda só</label>
+        </div>
+        <div class="form-check mb-3">
+            <input id="imprimir-comprovante" class="form-check-input" type="checkbox">
+            <label for="imprimir-comprovante" class="form-check-label">Imprimir comprovante automaticamente ao fechar a conta</label>
         </div>
         <button id="salvar-configuracoes" class="btn btn-primary" type="submit">Salvar configurações</button>
     </form>

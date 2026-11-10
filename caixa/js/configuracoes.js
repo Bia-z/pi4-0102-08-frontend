@@ -25,7 +25,10 @@ export async function inicializarConfiguracoes({
         const config = dados.configuracao ?? dados;
         documento.getElementById('nome-restaurante').value = config.nomeRestaurante ?? '';
         documento.getElementById('taxa-servico').value = config.taxaServicoPercentual ?? 0;
+        documento.getElementById('taxa-servico-ativa').checked = config.taxaServicoAtiva !== false;
         documento.getElementById('imprimir-comanda').checked = Boolean(config.imprimirComandaAoAceitar);
+        documento.getElementById('comanda-unica').checked = config.comandaUnica !== false;
+        documento.getElementById('imprimir-comprovante').checked = Boolean(config.imprimirComprovanteAoFechar);
         for (const campo of form.querySelectorAll('input, button')) campo.disabled = !admin;
         form.hidden = false;
         if (!admin) {
@@ -51,7 +54,10 @@ export async function inicializarConfiguracoes({
             const atualizada = await api.atualizar({
                 nomeRestaurante: documento.getElementById('nome-restaurante').value.trim(),
                 taxaServicoPercentual: Number(taxa),
+                taxaServicoAtiva: documento.getElementById('taxa-servico-ativa').checked,
                 imprimirComandaAoAceitar: documento.getElementById('imprimir-comanda').checked,
+                comandaUnica: documento.getElementById('comanda-unica').checked,
+                imprimirComprovanteAoFechar: documento.getElementById('imprimir-comprovante').checked,
             });
             sucesso.textContent = 'Configurações salvas.';
             sucesso.hidden = false;

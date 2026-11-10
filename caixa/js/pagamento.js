@@ -3,6 +3,7 @@ import {
     cancelarPagamento,
     iniciarPagamento,
     listarPedidos,
+    obterConfiguracaoCaixa,
     obterMapaMesas,
     processarPagamento,
     transferirPedidoParaMesa,
@@ -176,6 +177,8 @@ export async function inicializarPagamento({
         processarPagamento,
         cancelarPagamento,
         transferirPedido: transferirPedidoParaMesa,
+        obterConfiguracao: obterConfiguracaoCaixa,
+        baixarComprovante: baixarComprovantePedido,
     },
     conectarSessao = conectarAtualizacoesMesas,
     conectarPedidos = conectarAtualizacoesPedidos,
@@ -499,6 +502,17 @@ export async function inicializarPagamento({
         }
     });
 
+    const imprimirComprovanteSeConfigurado = async (resposta) => {
+        const pedidoId = resposta?.pedidosPagos?.[0];
+        if (!pedidoId || !api.obterConfiguracao) return;
+        try {
+            const configuracao = await api.obterConfiguracao();
+            if (configuracao?.imprimirComprovanteAoFechar) await api.baixarComprovante(pedidoId);
+        } catch {
+            elementos.erroComprovante.textContent = 'Não foi possível abrir o comprovante automaticamente. Use o botão do comprovante.';
+        }
+    };
+
     elementos.formulario.addEventListener('submit', async (evento) => {
         evento.preventDefault();
         if (elementos.enviar.disabled) return;
@@ -549,6 +563,7 @@ export async function inicializarPagamento({
                 linha.valor.disabled = true;
             }
             elementos.cancelar.disabled = true;
+            await imprimirComprovanteSeConfigurado(resposta);
         } catch (erro) {
             mostrarErro(erro);
         } finally {

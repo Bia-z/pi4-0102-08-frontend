@@ -9,7 +9,7 @@
     <link href="/assets/img/logo-marca.png" rel="icon" type="image/png">
 </head>
 <body>
-<nav class="navbar navbar-expand flex-wrap px-3">
+<nav class="navbar navbar-expand flex-wrap px-3 d-print-none">
     <a class="navbar-brand d-flex align-items-center gap-2" href="/caixa/index.html"><img src="/assets/img/logo-marca.png" alt="RestManager" height="32"><span>Caixa</span></a>
     <ul class="navbar-nav me-auto flex-wrap">
         <li class="nav-item"><a id="voltar-caixa" aria-label="Voltar à página anterior" class="nav-link" href="/caixa/index.html">← Voltar</a></li>
@@ -20,7 +20,7 @@
         <button id="btn-sair" class="btn btn-outline-light btn-sm" type="button">Sair</button>
     </div>
 </nav>
-<main class="container py-4">
+<main class="container py-4 d-print-none">
     <h1 class="h3 mb-3">Sangria e reforço</h1>
     <p id="erro-movimentacao" class="alert alert-danger" role="alert" hidden></p>
     <p id="sucesso-movimentacao" class="alert alert-success" role="status" hidden></p>
@@ -38,11 +38,12 @@
     <h2 class="h5">Movimentações registradas</h2>
     <div class="table-responsive">
         <table class="table table-striped">
-            <thead><tr><th>Data e hora</th><th>Tipo</th><th>Valor</th><th>Motivo</th></tr></thead>
-            <tbody id="movimentacoes-caixa"><tr><td colspan="4">Carregando movimentações...</td></tr></tbody>
+            <thead><tr><th>Data e hora</th><th>Tipo</th><th>Valor</th><th>Motivo</th><th>Ações</th></tr></thead>
+            <tbody id="movimentacoes-caixa"><tr><td colspan="5">Carregando movimentações...</td></tr></tbody>
         </table>
     </div>
 </main>
+<section id="area-impressao" class="d-none d-print-block p-3"></section>
 <script type="module">
     import { iniciarPaginaCaixa } from '/assets/js/core/guard.js';
     import { inicializarSangria } from '/caixa/js/sangria.js';

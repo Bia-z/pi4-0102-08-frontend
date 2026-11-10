@@ -9,7 +9,7 @@
     <link href="/assets/img/logo-marca.png" rel="icon" type="image/png">
 </head>
 <body>
-<nav class="navbar navbar-expand flex-wrap px-3">
+<nav class="navbar navbar-expand flex-wrap px-3 d-print-none">
     <a class="navbar-brand d-flex align-items-center gap-2" href="/caixa/index.html"><img src="/assets/img/logo-marca.png" alt="RestManager" height="32"><span>Caixa</span></a>
     <ul class="navbar-nav me-auto flex-wrap">
         <li class="nav-item"><a id="voltar-caixa" aria-label="Voltar à página anterior" class="nav-link" href="/caixa/index.html">← Voltar</a></li>
@@ -21,13 +21,23 @@
     </div>
 </nav>
 <main class="container py-4">
-    <h1 class="h3 mb-3">Consulta de comanda</h1>
-    <form id="form-comanda" class="row g-2 align-items-end mb-3">
+    <h1 class="h3 mb-3 d-print-none">Consulta de comanda</h1>
+    <div class="row g-2 align-items-end mb-3 d-print-none">
+        <div class="col-auto"><label for="data-comandas" class="form-label">Data</label><input id="data-comandas" class="form-control" type="date"></div>
+    </div>
+    <div class="table-responsive mb-3 d-print-none">
+        <table class="table table-striped">
+            <thead><tr><th>Pedido</th><th>Mesa</th><th>Garçom</th><th>Horário</th><th>Ações</th></tr></thead>
+            <tbody id="lista-comandas"></tbody>
+        </table>
+    </div>
+    <form id="form-comanda" class="row g-2 align-items-end mb-3 d-print-none">
         <div class="col-auto"><label for="pedido-id" class="form-label">Pedido</label><input id="pedido-id" class="form-control" type="text" required></div>
         <div class="col-auto"><button class="btn btn-primary" type="submit">Consultar</button></div>
+        <div class="col-auto"><button id="imprimir-comanda" class="btn btn-outline-primary" type="button" disabled>Imprimir</button></div>
         <div class="col-auto"><button id="baixar-comanda" class="btn btn-outline-primary" type="button" disabled>Baixar / abrir PDF</button></div>
     </form>
-    <p id="erro-comanda" class="alert alert-danger" role="alert" hidden></p>
+    <p id="erro-comanda" class="alert alert-danger d-print-none" role="alert" hidden></p>
     <section id="visualizacao-comanda" class="card card-body" aria-live="polite"></section>
 </main>
 <script type="module">
