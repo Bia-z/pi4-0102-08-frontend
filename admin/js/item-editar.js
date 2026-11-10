@@ -42,14 +42,12 @@ function mostrarCategorias(categorias, seletor, categoriaAtual) {
         ids.add(categoria.categoriaId);
         seletor.add(new Option(categoria.nome, String(categoria.categoriaId)));
     });
-    // O cardápio só traz categorias ativas; se a do item foi desativada ela continua selecionável.
     if (!ids.has(categoriaAtual)) {
         seletor.add(new Option(`Categoria atual (inativa, id ${categoriaAtual})`, String(categoriaAtual)));
     }
     seletor.value = String(categoriaAtual);
 }
 
-// Mostra os ingredientes ativos e também os inativos que o item já usa (marcados como "inativo").
 function mostrarIngredientes(ingredientes, seletor, vinculados) {
     seletor.replaceChildren();
     const exibidos = new Set();

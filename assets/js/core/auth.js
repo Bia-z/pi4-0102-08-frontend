@@ -1,7 +1,5 @@
-// Guarda e lê os dados de quem fez login (token, perfil e código).
 const CHAVE = 'restmanager.sessao';
 
-// Tela inicial de cada perfil
 const AREAS = {
     admin: '/admin/funcionarios.html',
     garcom: '/garcom/index.html',

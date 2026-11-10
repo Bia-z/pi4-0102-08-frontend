@@ -12,7 +12,6 @@ const MENSAGENS_ERRO = {
     INGREDIENTE_NAO_ENCONTRADO: 'Ingrediente não encontrado. Volte para a lista e tente de novo.',
 };
 
-// Sem ingredienteId a tela cadastra; com ingredienteId ela edita o ingrediente existente.
 export function inicializarFormIngrediente({
                                                form = document.getElementById('form-ingrediente'),
                                                alerta = document.getElementById('ingrediente-alerta'),

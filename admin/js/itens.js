@@ -95,7 +95,6 @@ export function inicializarListaItens({
 
     async function carregar() {
         try {
-            // O nome da categoria vem do cardápio; se ele falhar a lista aparece mesmo assim.
             const [produtos, categorias] = await Promise.all([
                 listar(),
                 Promise.resolve().then(() => obterCategorias()).catch(() => []),

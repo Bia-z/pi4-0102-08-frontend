@@ -1,9 +1,6 @@
 import { lerSessao, areaInicial, sair } from './auth.js';
 import { obterCaixaAberto } from './api.js';
 
-// Chamado no começo de cada página de uma área.
-// Sem login volta para a tela de entrada; com outro perfil volta para a área do próprio perfil.
-// Atenção: isto é só conforto de navegação. Quem protege de verdade é o backend (H02.2).
 export function exigirPerfil(perfilPermitido) {
     return exigirPerfis([perfilPermitido]);
 }
@@ -23,7 +20,6 @@ export function exigirPerfis(perfisPermitidos) {
     return sessao;
 }
 
-// Faz a checagem e liga o topo da página (código do usuário e botão Sair).
 export function iniciarPagina(perfilPermitido) {
     return iniciarPaginaPerfis([perfilPermitido]);
 }
