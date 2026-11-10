@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cadastrarProduto, obterCardapio, obterIngredientes } from '../assets/js/core/api.js';
+import { cadastrarProduto, obterCardapio } from '../assets/js/core/api.js';
 import { inicializarCadastroProduto } from '../admin/js/prato-form.js';
 
 class ElementoFake {
@@ -58,10 +58,8 @@ function criarFormularioProduto() {
         preco: new ElementoFake('28'),
         categoriaId: new ElementoFake('1'),
         imagemUrl: new ElementoFake('bruschetta.jpg'),
-        ingredientes: new ElementoFake(),
         ativo: new ElementoFake(),
     };
-    campos.ingredientes.selectedOptions = [{ value: '1' }, { value: '2' }, { value: '5' }];
     const form = new ElementoFake();
     form.elements = { namedItem: (nome) => campos[nome] };
     const alerta = new ElementoFake();
@@ -69,8 +67,6 @@ function criarFormularioProduto() {
     const sucesso = new ElementoFake();
     sucesso.classList.add('d-none');
     const botao = new ElementoFake();
-    elementosPorId.set('ingredientes', campos.ingredientes);
-    elementosPorId.set('ingredientes-erro', new ElementoFake());
     elementosPorId.set('preco', campos.preco);
     elementosPorId.set('preco-erro', new ElementoFake());
     elementosPorId.set('categoriaId', campos.categoriaId);
@@ -100,7 +96,6 @@ test('cadastra produto enviando JSON e token do administrador', async () => {
             preco: 28,
             categoriaId: 1,
             imagemUrl: 'bruschetta.jpg',
-            ingredientes: [1, 2, 5],
             ativo: true,
         };
         await cadastrarProduto(produto);
@@ -138,30 +133,7 @@ test('obtém cardápio com autenticação', async () => {
     }
 });
 
-test('obtém ingredientes ativos com autenticação', async () => {
-    const fetchOriginal = globalThis.fetch;
-    const storageOriginal = globalThis.localStorage;
-    let requisicao;
-    globalThis.localStorage = {
-        getItem: () => JSON.stringify({ token: 'token-admin', perfil: 'admin' }),
-    };
-    globalThis.fetch = async (url, opcoes) => {
-        requisicao = { url, opcoes };
-        return { ok: true, status: 200, json: async () => [{ id: 1, nome: 'Alho' }] };
-    };
-
-    try {
-        assert.deepEqual(await obterIngredientes(), [{ id: 1, nome: 'Alho' }]);
-        assert.equal(requisicao.url, '/api/ingredientes');
-        assert.equal(requisicao.opcoes.method, 'GET');
-        assert.equal(requisicao.opcoes.headers.Authorization, 'Bearer token-admin');
-    } finally {
-        globalThis.fetch = fetchOriginal;
-        globalThis.localStorage = storageOriginal;
-    }
-});
-
-test('carrega categorias e ingredientes e envia os IDs selecionados', async () => {
+test('carrega as categorias e envia o produto com a categoria escolhida', async () => {
     const tela = criarFormularioProduto();
     let payload;
     globalThis.Option = class {
@@ -173,7 +145,6 @@ test('carrega categorias e ingredientes e envia os IDs selecionados', async () =
     inicializarCadastroProduto({
         ...tela,
         obterCategorias: async () => [{ categoriaId: 1, nome: 'Entradas', produtos: [] }],
-        obterListaIngredientes: async () => [{ id: 1, nome: 'Alho' }, { id: 2, nome: 'Tomate' }, { id: 5, nome: 'Manjericão' }],
         cadastrar: async (produto) => { payload = produto; return { id: 10 }; },
     });
 
@@ -186,13 +157,12 @@ test('carrega categorias e ingredientes e envia os IDs selecionados', async () =
         preco: 28,
         categoriaId: 1,
         imagemUrl: 'bruschetta.jpg',
-        ingredientes: [1, 2, 5],
         ativo: true,
     });
     assert.equal(tela.sucesso.classList.contains('d-none'), false);
 });
 
-test('permite descrição e imagem opcionais vazias com ingredientes selecionados', async () => {
+test('permite descrição e imagem opcionais vazias', async () => {
     const tela = criarFormularioProduto();
     tela.campos.descricao.value = '';
     tela.campos.imagemUrl.value = '';
@@ -200,7 +170,6 @@ test('permite descrição e imagem opcionais vazias com ingredientes selecionado
     inicializarCadastroProduto({
         ...tela,
         obterCategorias: async () => [{ categoriaId: 1, nome: 'Entradas', produtos: [] }],
-        obterListaIngredientes: async () => [{ id: 1, nome: 'Alho' }, { id: 2, nome: 'Tomate' }, { id: 5, nome: 'Manjericão' }],
         cadastrar: async (produto) => { payload = produto; return {}; },
     });
 
@@ -211,53 +180,56 @@ test('permite descrição e imagem opcionais vazias com ingredientes selecionado
         nome: 'Bruschetta Italiana',
         preco: 28,
         categoriaId: 1,
-        ingredientes: [1, 2, 5],
         ativo: true,
     });
 });
 
-test('exige ao menos um ingrediente antes do envio', async () => {
+test('a categoria Adicionais aparece no seletor e pode ser escolhida no cadastro', async () => {
     const tela = criarFormularioProduto();
-    tela.campos.ingredientes.selectedOptions = [];
-    let chamadas = 0;
+    tela.campos.nome.value = 'Queijo Extra';
+    tela.campos.preco.value = '6';
+    tela.campos.categoriaId.value = '4';
+    tela.campos.descricao.value = '';
+    tela.campos.imagemUrl.value = '';
+    let payload;
+    globalThis.Option = class {
+        constructor(text, value) {
+            this.text = text;
+            this.value = value;
+        }
+    };
     inicializarCadastroProduto({
         ...tela,
-        obterCategorias: async () => [{ categoriaId: 1, nome: 'Entradas', produtos: [] }],
-        obterListaIngredientes: async () => [{ id: 1, nome: 'Alho' }],
-        cadastrar: async () => { chamadas += 1; },
+        obterCategorias: async () => [
+            { categoriaId: 2, nome: 'Pratos principais', produtos: [] },
+            { categoriaId: 3, nome: 'Sobremesas', produtos: [] },
+            { categoriaId: 4, nome: 'Adicionais', produtos: [] },
+        ],
+        cadastrar: async (produto) => { payload = produto; return { id: 11, nome: produto.nome }; },
     });
 
     await new Promise((resolve) => setImmediate(resolve));
+
+    assert.deepEqual(
+        tela.campos.categoriaId.options.map((opcao) => opcao.text),
+        ['Selecione uma categoria', 'Pratos principais', 'Sobremesas', 'Adicionais'],
+    );
+
     await tela.form.enviar();
 
-    assert.equal(chamadas, 0);
-    assert.equal(elementosPorId.get('ingredientes-erro').textContent, 'Selecione pelo menos um ingrediente.');
-});
-
-test('impede IDs de ingrediente repetidos antes do envio', async () => {
-    const tela = criarFormularioProduto();
-    tela.campos.ingredientes.selectedOptions = [{ value: '1' }, { value: '1' }];
-    let chamadas = 0;
-    inicializarCadastroProduto({
-        ...tela,
-        obterCategorias: async () => [{ categoriaId: 1, nome: 'Entradas', produtos: [] }],
-        obterListaIngredientes: async () => [{ id: 1, nome: 'Alho' }],
-        cadastrar: async () => { chamadas += 1; },
+    assert.deepEqual(payload, {
+        nome: 'Queijo Extra',
+        preco: 6,
+        categoriaId: 4,
+        ativo: true,
     });
-
-    await new Promise((resolve) => setImmediate(resolve));
-    await tela.form.enviar();
-
-    assert.equal(chamadas, 0);
-    assert.equal(elementosPorId.get('ingredientes-erro').textContent, 'Não selecione o mesmo ingrediente mais de uma vez.');
 });
 
-test('mostra mensagens específicas para erros de ingredientes e produto duplicado', async (context) => {
+test('mostra mensagens específicas para produto duplicado e categoria inexistente', async (context) => {
     const casos = [
-        ['INGREDIENTES_OBRIGATORIOS', 'ingredientes-erro', 'Selecione pelo menos um ingrediente.'],
-        ['INGREDIENTE_DUPLICADO', 'ingredientes-erro', 'Não selecione o mesmo ingrediente mais de uma vez.'],
-        ['INGREDIENTE_NAO_ENCONTRADO', 'ingredientes-erro', 'Um ou mais ingredientes não foram encontrados. Confira os IDs informados.'],
         ['PRODUTO_DUPLICADO', 'produto-alerta', 'Já existe um produto com esse nome.'],
+        ['CATEGORIA_NAO_ENCONTRADA', 'categoriaId-erro',
+            'A categoria selecionada não foi encontrada. Atualize as categorias e tente novamente.'],
     ];
 
     for (const [codigo, elemento, mensagem] of casos) {
@@ -266,7 +238,6 @@ test('mostra mensagens específicas para erros de ingredientes e produto duplica
             inicializarCadastroProduto({
                 ...tela,
                 obterCategorias: async () => [{ categoriaId: 1, nome: 'Entradas', produtos: [] }],
-                obterListaIngredientes: async () => [{ id: 1, nome: 'Alho' }],
                 cadastrar: async () => {
                     throw Object.assign(new Error(codigo), { codigo, status: 400 });
                 },

@@ -1,4 +1,4 @@
-// Peças comuns das telas de listagem do administrador (funcionários, itens e ingredientes).
+// Peças comuns das telas de listagem do administrador (funcionários e itens).
 
 export function criarElemento(tag, { texto, classe, atributos } = {}) {
     const elemento = document.createElement(tag);

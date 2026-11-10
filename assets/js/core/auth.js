@@ -23,8 +23,8 @@ export function salvarSessao(resposta, codigo) {
         token: resposta.token,
         tipoToken: resposta.tipoToken,
         perfil: resposta.perfil,
-        codigo: codigo,
         usuarioId: resposta.usuarioId,
+        codigo: codigo,
     };
     localStorage.setItem(CHAVE, JSON.stringify(sessao));
 }

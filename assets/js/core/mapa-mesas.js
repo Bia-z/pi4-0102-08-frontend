@@ -21,13 +21,13 @@ export function podeTransferirPedidos(perfil) {
 }
 
 function criarAcaoTransferencia({
-    documento,
-    mesa,
-    destinos,
-    listar = listarPedidos,
-    transferir = transferirPedidoParaMesa,
-    recarregar,
-}) {
+                                    documento,
+                                    mesa,
+                                    destinos,
+                                    listar = listarPedidos,
+                                    transferir = transferirPedidoParaMesa,
+                                    recarregar,
+                                }) {
     const grupo = documento.createElement('div');
     grupo.className = 'mt-3';
     const botao = documento.createElement('button');
@@ -134,16 +134,17 @@ function criarAcaoTransferencia({
 }
 
 export async function carregarMapaMesas({
-    documento = globalThis.document,
-    mapa = documento.getElementById('mapa-mesas'),
-    obterMapa = obterMapaMesas,
-    listar = listarPedidos,
-    transferir = transferirPedidoParaMesa,
-    perfil = lerSessao()?.perfil,
-    permitirFechamento = false,
-    statusFiltro,
-    buscaNumero,
-} = {}) {
+                                            documento = globalThis.document,
+                                            mapa = documento.getElementById('mapa-mesas'),
+                                            obterMapa = obterMapaMesas,
+                                            listar = listarPedidos,
+                                            transferir = transferirPedidoParaMesa,
+                                            perfil = lerSessao()?.perfil,
+                                            permitirFechamento = false,
+                                            permitirLancamento = false,
+                                            statusFiltro,
+                                            buscaNumero,
+                                        } = {}) {
     if (!mapa.hasChildNodes()) mapa.textContent = 'Carregando mesas...';
 
     try {
@@ -219,10 +220,27 @@ export async function carregarMapaMesas({
                         transferir,
                         perfil,
                         permitirFechamento,
+                        permitirLancamento,
                         statusFiltro: statusAtual,
                         buscaNumero: buscaAtual,
                     }),
                 }));
+            }
+            if (permitirLancamento && mesa.mesaId != null) {
+                if (statusMesa === 'em_pagamento') {
+                    const bloqueado = document.createElement('button');
+                    bloqueado.type = 'button';
+                    bloqueado.className = 'btn btn-secondary mt-3';
+                    bloqueado.disabled = true;
+                    bloqueado.textContent = 'Mesa em pagamento';
+                    corpo.appendChild(bloqueado);
+                } else {
+                    const lancar = document.createElement('a');
+                    lancar.className = 'btn btn-primary mt-3';
+                    lancar.href = `/garcom/pedido.html?mesaId=${encodeURIComponent(mesa.mesaId)}`;
+                    lancar.textContent = 'Lançar pedido';
+                    corpo.appendChild(lancar);
+                }
             }
             if (permitirFechamento && mesa.mesaId != null) {
                 const abrir = document.createElement('a');
@@ -240,16 +258,17 @@ export async function carregarMapaMesas({
 }
 
 export function inicializarMapaMesas({
-    mapa = document.getElementById('mapa-mesas'),
-    botao = document.getElementById('atualizar-mesas'),
-    filtroStatus = document.getElementById('filtro-status-mesa'),
-    buscaMesa = document.getElementById('buscar-mesa'),
-    obterMapa = obterMapaMesas,
-    listar = listarPedidos,
-    transferir = transferirPedidoParaMesa,
-    perfil = lerSessao()?.perfil,
-    permitirFechamento = false,
-} = {}) {
+                                         mapa = document.getElementById('mapa-mesas'),
+                                         botao = document.getElementById('atualizar-mesas'),
+                                         filtroStatus = document.getElementById('filtro-status-mesa'),
+                                         buscaMesa = document.getElementById('buscar-mesa'),
+                                         obterMapa = obterMapaMesas,
+                                         listar = listarPedidos,
+                                         transferir = transferirPedidoParaMesa,
+                                         perfil = lerSessao()?.perfil,
+                                         permitirFechamento = false,
+                                         permitirLancamento = false,
+                                     } = {}) {
     const carregar = () => carregarMapaMesas({
         mapa,
         obterMapa,
@@ -257,6 +276,7 @@ export function inicializarMapaMesas({
         transferir,
         perfil,
         permitirFechamento,
+        permitirLancamento,
         statusFiltro: filtroStatus?.value || 'todos',
         buscaNumero: buscaMesa?.value || '',
     });
