@@ -14,7 +14,6 @@ async function requisitarJson(caminho, opcoes) {
     return dados;
 }
 
-// CT3 autenticarUsuario: POST /api/auth/login
 export function login(codigo, senha) {
     return requisitarJson('/auth/login', {
         method: 'POST',
@@ -81,7 +80,6 @@ function enviarJson(caminho, metodo, corpo) {
     });
 }
 
-// ---- Funcionários (só administrador) ----
 export function listarUsuarios() {
     return requisitarAutenticado('/usuarios', { method: 'GET' });
 }
@@ -90,12 +88,10 @@ export function atualizarUsuario(id, usuario) {
     return enviarJson(`/usuarios/${encodeURIComponent(id)}`, 'PUT', usuario);
 }
 
-// O backend desativa (ativo = false); o registro continua no banco para manter o histórico.
 export function desativarUsuario(id) {
     return requisitarAutenticado(`/usuarios/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
-// ---- Itens do cardápio (produtos) ----
 export function listarProdutos() {
     return requisitarAutenticado('/produtos', { method: 'GET' });
 }
@@ -128,7 +124,6 @@ export function listarPedidos({ mesaId, garcomId } = {}) {
     return requisitarAutenticado(`/pedidos${query}`, { method: 'GET' });
 }
 
-// CT7 criarPedido: POST /api/pedidos
 export function criarPedido({ mesaId, garcomId, itens }) {
     return enviarJson('/pedidos', 'POST', { mesaId, garcomId, itens });
 }

@@ -123,7 +123,6 @@ export function inicializarCadastroFuncionario({
                                                } = {}) {
     if (!form) return;
 
-    // Com usuarioId a mesma tela edita um funcionário existente (a senha vira opcional).
     const edicao = usuarioId !== null && usuarioId !== undefined;
     const rotuloBotao = edicao ? 'Salvar alterações' : 'Cadastrar funcionário';
     let enviando = false;
@@ -209,7 +208,6 @@ export function inicializarCadastroFuncionario({
         erroConfirmacao.textContent = '';
         const senhaPreenchida = campos.senha.value.trim() || campos['confirmar-senha'].value.trim();
         if (edicao && !senhaPreenchida) {
-            // edição sem troca de senha: não há o que confirmar
         } else if (!campos['confirmar-senha'].value.trim()) {
             campos['confirmar-senha'].classList.add('is-invalid');
             campos['confirmar-senha'].setAttribute('aria-invalid', 'true');
@@ -279,7 +277,6 @@ export function inicializarCadastroFuncionario({
     return edicao ? carregarFuncionario() : undefined;
 }
 
-// Ajusta os textos da tela quando ela abre com ?id= (modo edição).
 function prepararTelaEdicao() {
     document.title = 'RestManager | Editar funcionário';
     document.getElementById('titulo-pagina').textContent = 'Editar funcionário';

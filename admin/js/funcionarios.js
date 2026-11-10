@@ -72,8 +72,6 @@ export function inicializarListaFuncionarios({
     };
 
     const reativarFuncionario = (usuario) => {
-        // Funcionários antigos (ex.: criados pelo seed) podem não ter CPF e telefone, que o
-        // backend exige para salvar. Nesse caso o admin completa os dados pela tela de edição.
         if (!usuario.cpf || !usuario.telefone) {
             mostrarAlerta(
                 alerta,

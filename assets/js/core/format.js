@@ -1,4 +1,3 @@
-// Formatação de valores para exibição.
 
 export function formatarMoeda(valor) {
     const numero = Number(valor);

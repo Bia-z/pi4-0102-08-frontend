@@ -5,11 +5,7 @@ import { iniciarPagina } from '../../assets/js/core/guard.js';
 import { mensagemDeErro } from '../../assets/js/core/ui.js';
 import { conectarAtualizacoesMesas } from '../../assets/js/core/ws.js';
 
-// ---------- Carrinho (funções puras, sem tela) ----------
-// Cada linha: { linhaId, produtoId, nome, preco, quantidade, observacao }
-
 export function adicionarItem(carrinho, produto) {
-    // Mesmo produto sem observação soma na mesma linha; com observação vira linha própria
     const existente = carrinho.find((linha) => linha.produtoId === produto.id && !linha.observacao);
     if (existente) {
         return carrinho.map((linha) => (
@@ -45,13 +41,10 @@ export function removerItem(carrinho, linhaId) {
     return carrinho.filter((linha) => linha.linhaId !== linhaId);
 }
 
-// Subtotal dos itens. A taxa de serviço é somada pelo backend (CT7), por isso o valor
-// final do pedido pode ser maior que este.
 export function calcularSubtotal(carrinho) {
     return carrinho.reduce((total, linha) => total + linha.preco * linha.quantidade, 0);
 }
 
-// Corpo do CT7 criarPedido
 export function montarPedido({ mesaId, garcomId, carrinho }) {
     return {
         mesaId: Number(mesaId),
@@ -69,7 +62,6 @@ export function mesaBloqueada(mesa) {
     return String(mesa?.status ?? '').trim().toLowerCase() === 'em_pagamento';
 }
 
-// Valida e envia. Devolve { ok: true, pedido } ou { ok: false, mensagem }.
 export async function enviarPedido({
                                        mesaId,
                                        carrinho,
@@ -91,8 +83,6 @@ export async function enviarPedido({
         return { ok: false, mensagem: mensagemDeErro(erro), codigo: erro.codigo };
     }
 }
-
-// ---------- Tela ----------
 
 function criarElemento(tag, classe, texto) {
     const elemento = document.createElement(tag);
@@ -220,7 +210,6 @@ export async function inicializarPedidoGarcom({
             observacao.placeholder = 'Observação (ex.: sem cebola)';
             observacao.value = linha.observacao;
             observacao.setAttribute('aria-label', `Observação de ${linha.nome}`);
-            // Sem redesenhar a lista a cada tecla, senão o campo perde o foco
             observacao.addEventListener('input', () => {
                 carrinho = definirObservacao(carrinho, linha.linhaId, observacao.value);
             });
@@ -300,7 +289,6 @@ export async function inicializarPedidoGarcom({
             await carregarMesas();
         } else {
             mostrarAviso(avisoPedido, resultado.mensagem);
-            // Mesa pode ter entrado em pagamento sem a tela saber: atualiza o mapa
             if (resultado.codigo === 'MESA_EM_PAGAMENTO') await carregarMesas();
             atualizarBotao();
         }
@@ -309,7 +297,6 @@ export async function inicializarPedidoGarcom({
     renderizarCarrinho();
     await Promise.all([carregarMesas(), carregarCardapioPedido()]);
 
-    // Mesa que entra em pagamento enquanto o pedido está sendo montado bloqueia o botão na hora
     let primeiraConexao = true;
     try {
         await conectarMesas({

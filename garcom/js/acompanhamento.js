@@ -4,8 +4,6 @@ import { iniciarPagina } from '../../assets/js/core/guard.js';
 import { mensagemDeErro } from '../../assets/js/core/ui.js';
 import { conectarAtualizacoesPedidos } from '../../assets/js/core/ws.js';
 
-// ---------- Estado (funções puras, sem tela) ----------
-
 const STATUS_ITEM = {
     aguardando: { texto: 'Aguardando', classe: 'text-bg-secondary' },
     em_preparo: { texto: 'Em preparo', classe: 'text-bg-warning' },
@@ -16,9 +14,6 @@ export function infoStatusItem(status) {
     return STATUS_ITEM[status] ?? { texto: String(status ?? ''), classe: 'text-bg-light' };
 }
 
-// Aplica um evento CT11 (statusPedidoAtualizado) na lista.
-// Se o item não está na lista (pedido novo ou de outro garçom), `encontrado` é false
-// e quem chamou deve buscar a lista de novo via HTTP.
 export function aplicarStatusItem(pedidos, evento) {
     let item = null;
     let mesa = null;
@@ -50,8 +45,6 @@ export function contarProntos(pedido) {
 export function descreverItemPronto({ item, numeroMesa }) {
     return `Mesa ${numeroMesa}: ${item.quantidade}× ${item.produtoNome} pronto para servir.`;
 }
-
-// ---------- Tela ----------
 
 function criarElemento(tag, classe, texto) {
     const elemento = document.createElement(tag);
@@ -165,7 +158,6 @@ export async function inicializarAcompanhamento({
     function tratarEvento(evento) {
         const resultado = aplicarStatusItem(pedidos, evento);
         if (!resultado.encontrado) {
-            // Pedido novo (ex.: lançado em outro aparelho): busca o estado atual
             return carregar();
         }
         pedidos = resultado.pedidos;
@@ -188,7 +180,6 @@ export async function inicializarAcompanhamento({
     try {
         await conectar({
             aoConectar: () => {
-                // Durante uma queda o WebSocket não reenvia o que se perdeu: busca o estado atual
                 if (!primeiraConexao) carregar();
                 primeiraConexao = false;
                 mostrarStatus('Pedidos atualizados em tempo real.');

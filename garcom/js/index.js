@@ -10,14 +10,11 @@ function mostrarStatus(elemento, texto, erro = false) {
     elemento.classList.toggle('text-secondary', !erro);
 }
 
-// Mantém o mapa de mesas atualizado pelo canal /topic/mesas (CT21).
-// Como o WebSocket não reenvia o que se perdeu durante uma queda, a cada reconexão o
-// estado atual é buscado de novo via HTTP (ADR 0003, item 6).
 export async function acompanharMesasEmTempoReal({
-                                                     recarregar,
-                                                     conectar = conectarAtualizacoesMesas,
-                                                     status = globalThis.document?.getElementById('status-conexao'),
-                                                 } = {}) {
+    recarregar,
+    conectar = conectarAtualizacoesMesas,
+    status = globalThis.document?.getElementById('status-conexao'),
+} = {}) {
     let primeiraConexao = true;
     try {
         return await conectar({
@@ -40,11 +37,11 @@ export async function acompanharMesasEmTempoReal({
 }
 
 export function inicializarPainelGarcom({
-                                            botao = document.getElementById('atualizar'),
-                                            carregarMenu = carregarCardapio,
-                                            carregarMesas = () => carregarMapaMesas({ permitirLancamento: true }),
-                                            agendar = globalThis.setInterval,
-                                        } = {}) {
+    botao = document.getElementById('atualizar'),
+    carregarMenu = carregarCardapio,
+    carregarMesas = () => carregarMapaMesas({ permitirLancamento: true }),
+    acompanhar = acompanharMesasEmTempoReal,
+} = {}) {
     let atualizando = false;
 
     async function atualizar() {
@@ -58,16 +55,12 @@ export function inicializarPainelGarcom({
     }
 
     botao.addEventListener('click', atualizar);
-    agendar(atualizar, 30_000);
     atualizar();
-    return atualizar;
+    return acompanhar({ recarregar: carregarMesas });
 }
 
 if (typeof document !== 'undefined'
     && document.getElementById('painel-garcom')
     && iniciarPagina('garcom')) {
     inicializarPainelGarcom();
-    acompanharMesasEmTempoReal({
-        recarregar: () => carregarMapaMesas({ permitirLancamento: true }),
-    });
 }

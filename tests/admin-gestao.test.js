@@ -104,8 +104,6 @@ async function comFetch(resposta, corpo) {
     }
 }
 
-// ---------------------------------------------------------------- API
-
 test('funções de funcionário usam GET, PUT e DELETE autenticados', async () => {
     await comFetch({ ok: true, status: 200, json: async () => ({ id: 5 }) }, async (chamadas) => {
         await listarUsuarios();
@@ -147,8 +145,6 @@ test('formata valores em reais', () => {
     assert.equal(formatarMoeda(28).replace(/\s/g, ' '), 'R$ 28,00');
     assert.equal(formatarMoeda('abc'), '—');
 });
-
-// ---------------------------------------------------------------- lista de funcionários
 
 const FUNCIONARIOS = [
     { id: 1, codigo: 'ADMIN001', nome: 'Admin', email: null, cpf: '52998224725', telefone: '11999999999', perfil: 'admin', ativo: true },
@@ -261,8 +257,6 @@ test('mostra a mensagem do último administrador ao falhar a desativação', asy
     assert.equal(tela.alerta.classes.has('d-none'), false);
 });
 
-// ---------------------------------------------------------------- edição de funcionário
-
 function formularioEdicao({ listar, atualizar }) {
     const nomes = ['nome', 'email', 'cpf', 'telefone', 'codigo', 'perfil', 'senha', 'confirmar-senha', 'ativo'];
     const campos = Object.fromEntries(nomes.map((nome) => [nome, new Elemento('input')]));
@@ -361,8 +355,6 @@ test('edição avisa quando o funcionário não existe mais', async () => {
     assert.equal(tela.botao.disabled, true);
 });
 
-// ---------------------------------------------------------------- itens
-
 const PRODUTOS = [
     { id: 10, nome: 'Bruschetta', descricao: 'Pão e tomate', preco: 28, categoriaId: 1, imagemUrl: 'b.jpg', ativo: true },
     { id: 11, nome: 'Suco', descricao: null, preco: 9.5, categoriaId: 2, imagemUrl: null, ativo: false },
@@ -417,8 +409,6 @@ test('a lista de itens aparece mesmo se o cardápio falhar', async () => {
     assert.equal(tabela.children.length, 2);
     assert.equal(textosDaLinha(tabela.children[0])[1], '—');
 });
-
-// ---------------------------------------------------------------- edição de item
 
 const CATEGORIAS = [
     { categoriaId: 1, nome: 'Entradas', produtos: [] },

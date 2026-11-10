@@ -1,5 +1,3 @@
-// Peças comuns das telas de listagem do administrador (funcionários e itens).
-
 export function criarElemento(tag, { texto, classe, atributos } = {}) {
     const elemento = document.createElement(tag);
     if (texto !== undefined) elemento.textContent = texto;
