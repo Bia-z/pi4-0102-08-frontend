@@ -12,7 +12,6 @@
     <ul class="navbar-nav me-auto flex-wrap">
         <li class="nav-item"><a class="nav-link" href="/admin/funcionarios.html">Funcionários</a></li>
         <li class="nav-item"><a class="nav-link active" href="/admin/itens.html">Itens</a></li>
-        <li class="nav-item"><a class="nav-link" href="/admin/ingredientes.html">Ingredientes</a></li>
         <li class="nav-item"><a class="nav-link" href="/admin/mesa-form.html">Mesas</a></li>
     </ul>
     <div>
@@ -55,12 +54,6 @@
                 <div class="mb-3">
                     <label for="imagemUrl" class="form-label">Imagem (URL ou caminho) <span class="text-secondary">(opcional)</span></label>
                     <input id="imagemUrl" name="imagemUrl" class="form-control" type="text" maxlength="255">
-                </div>
-                <div class="mb-3">
-                    <label for="ingredientes" class="form-label">Ingredientes</label>
-                    <select id="ingredientes" name="ingredientes" class="form-select" multiple size="6" required aria-describedby="ingredientes-ajuda ingredientes-erro"></select>
-                    <div id="ingredientes-ajuda" class="form-text">Use Ctrl (Windows) ou Command (Mac) para marcar vários. Ingredientes inativos só aparecem se o item já os usa.</div>
-                    <div id="ingredientes-erro" class="invalid-feedback"></div>
                 </div>
                 <div class="form-check mb-4">
                     <input id="ativo" name="ativo" class="form-check-input" type="checkbox" checked>

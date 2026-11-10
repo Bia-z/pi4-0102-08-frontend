@@ -104,28 +104,8 @@ export function desativarProduto(id) {
     return requisitarAutenticado(`/produtos/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
-export function listarIngredientesGerenciamento() {
-    return requisitarAutenticado('/ingredientes/gerenciamento', { method: 'GET' });
-}
-
-export function cadastrarIngrediente(ingrediente) {
-    return enviarJson('/ingredientes', 'POST', ingrediente);
-}
-
-export function atualizarIngrediente(id, ingrediente) {
-    return enviarJson(`/ingredientes/${encodeURIComponent(id)}`, 'PUT', ingrediente);
-}
-
-export function desativarIngrediente(id) {
-    return requisitarAutenticado(`/ingredientes/${encodeURIComponent(id)}`, { method: 'DELETE' });
-}
-
 export function obterCardapio() {
     return requisitarAutenticado('/cardapio', { method: 'GET' });
-}
-
-export function obterIngredientes() {
-    return requisitarAutenticado('/ingredientes', { method: 'GET' });
 }
 
 export function obterMapaMesas() {

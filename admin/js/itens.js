@@ -22,7 +22,6 @@ const MENSAGENS_ERRO = {
     TOKEN_AUSENTE: 'Sua sessão expirou. Entre novamente para continuar.',
     TOKEN_INVALIDO: 'Sua sessão expirou. Entre novamente para continuar.',
     PRODUTO_NAO_ENCONTRADO: 'Item não encontrado. A lista foi atualizada.',
-    INGREDIENTE_NAO_ENCONTRADO: 'Não foi possível reativar: um ingrediente do item não existe mais. Edite o item e escolha os ingredientes.',
     CATEGORIA_NAO_ENCONTRADA: 'Não foi possível reativar: a categoria do item não foi encontrada. Edite o item.',
 };
 
@@ -68,7 +67,6 @@ export function inicializarListaItens({
             preco: produto.preco,
             categoriaId: produto.categoriaId,
             imagemUrl: produto.imagemUrl ?? null,
-            ingredientes: produto.ingredientes,
             ativo: true,
         }),
         'Não foi possível reativar o item. Tente novamente.',

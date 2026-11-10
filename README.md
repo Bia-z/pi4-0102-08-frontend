@@ -34,7 +34,7 @@ Todos com a senha `restmanager123`.
 
 | Pasta | Conteúdo |
 | :--- | :--- |
-| `admin/` | Funcionários, itens do cardápio, ingredientes e mesas |
+| `admin/` | Funcionários, itens do cardápio e mesas |
 | `garcom/` | Mapa de mesas, cardápio, lançamento e acompanhamento de pedidos |
 | `cozinha/` | Painel de pedidos em tempo real e impressão de comandas |
 | `caixa/` | Turno, mapa de mesas, pagamento, comprovante, sangria, relatórios e configurações |

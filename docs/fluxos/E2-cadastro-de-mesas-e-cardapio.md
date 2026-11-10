@@ -4,9 +4,9 @@
 
 ## Passos
 
-1. O Administrador preenche o cadastro do produto no painel gerencial. As categorias são carregadas do cardápio; descrição, imagem e ingredientes são opcionais.
+1. O Administrador preenche o cadastro do produto no painel gerencial. As categorias são carregadas do cardápio; descrição e imagem são opcionais. As categorias do cardápio são Entradas, Pratos principais, Sobremesas, Adicionais e Bebidas.
 2. O Frontend envia `POST /api/produtos` com o token do administrador no cabeçalho `Authorization: Bearer <token>` e corpo JSON (CT4).
-3. O Backend valida o preço, a categoria, os ingredientes e a duplicidade, persiste o produto e responde com `201 Created`.
+3. O Backend valida o preço, a categoria e a duplicidade, persiste o produto e responde com `201 Created`.
 4. O garçom consulta o cardápio e o Frontend envia `GET /api/cardapio` com o token no cabeçalho `Authorization: Bearer <token>`.
 5. O Backend responde com produtos ativos agrupados por categoria ativa e o Frontend exibe os dados.
 
@@ -29,7 +29,7 @@ sequenceDiagram
 
     Admin->>Frontend: preenche dados do produto
     Frontend->>Backend: POST /api/produtos (Bearer token)
-    Backend->>Backend: valida preço, categoria, ingredientes e duplicidade
+    Backend->>Backend: valida preço, categoria e duplicidade
     Backend->>Banco: persiste produto
     Banco-->>Backend: produto salvo
     Backend-->>Frontend: 201 Created

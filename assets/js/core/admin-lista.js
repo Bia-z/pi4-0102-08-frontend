@@ -1,4 +1,3 @@
-
 export function criarElemento(tag, { texto, classe, atributos } = {}) {
     const elemento = document.createElement(tag);
     if (texto !== undefined) elemento.textContent = texto;

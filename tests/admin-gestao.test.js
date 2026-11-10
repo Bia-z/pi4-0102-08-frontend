@@ -1,14 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-    atualizarIngrediente,
     atualizarProduto,
     atualizarUsuario,
-    cadastrarIngrediente,
-    desativarIngrediente,
     desativarProduto,
     desativarUsuario,
-    listarIngredientesGerenciamento,
     listarProdutos,
     listarUsuarios,
 } from '../assets/js/core/api.js';
@@ -17,8 +13,6 @@ import { inicializarListaFuncionarios } from '../admin/js/funcionarios.js';
 import { inicializarCadastroFuncionario } from '../admin/js/funcionario-form.js';
 import { inicializarListaItens } from '../admin/js/itens.js';
 import { inicializarEdicaoItem } from '../admin/js/item-editar.js';
-import { inicializarListaIngredientes } from '../admin/js/ingredientes.js';
-import { inicializarFormIngrediente } from '../admin/js/ingrediente-form.js';
 
 class Elemento {
     constructor(tag = 'div', value = '') {
@@ -130,15 +124,11 @@ test('funções de funcionário usam GET, PUT e DELETE autenticados', async () =
     });
 });
 
-test('funções de item e ingrediente chamam os endpoints do backend', async () => {
+test('funções de item chamam os endpoints do backend', async () => {
     await comFetch({ ok: true, status: 200, json: async () => ({}) }, async (chamadas) => {
         await listarProdutos();
         await atualizarProduto(7, { nome: 'Pizza' });
         await desativarProduto(7);
-        await listarIngredientesGerenciamento();
-        await cadastrarIngrediente({ nome: 'Queijo' });
-        await atualizarIngrediente(3, { nome: 'Queijo', ativo: false });
-        await desativarIngrediente(3);
 
         assert.deepEqual(
             chamadas.map(({ url, opcoes }) => `${opcoes.method} ${url}`),
@@ -146,13 +136,8 @@ test('funções de item e ingrediente chamam os endpoints do backend', async () 
                 'GET /api/produtos',
                 'PUT /api/produtos/7',
                 'DELETE /api/produtos/7',
-                'GET /api/ingredientes/gerenciamento',
-                'POST /api/ingredientes',
-                'PUT /api/ingredientes/3',
-                'DELETE /api/ingredientes/3',
             ],
         );
-        assert.deepEqual(JSON.parse(chamadas[5].opcoes.body), { nome: 'Queijo', ativo: false });
     });
 });
 
@@ -371,8 +356,8 @@ test('edição avisa quando o funcionário não existe mais', async () => {
 });
 
 const PRODUTOS = [
-    { id: 10, nome: 'Bruschetta', descricao: 'Pão e tomate', preco: 28, categoriaId: 1, imagemUrl: 'b.jpg', ativo: true, ingredientes: [1, 2] },
-    { id: 11, nome: 'Suco', descricao: null, preco: 9.5, categoriaId: 2, imagemUrl: null, ativo: false, ingredientes: [3] },
+    { id: 10, nome: 'Bruschetta', descricao: 'Pão e tomate', preco: 28, categoriaId: 1, imagemUrl: 'b.jpg', ativo: true },
+    { id: 11, nome: 'Suco', descricao: null, preco: 9.5, categoriaId: 2, imagemUrl: null, ativo: false },
 ];
 
 test('lista itens com categoria, preço e ações de editar e desativar', async () => {
@@ -407,7 +392,6 @@ test('lista itens com categoria, preço e ações de editar e desativar', async 
         preco: 9.5,
         categoriaId: 2,
         imagemUrl: null,
-        ingredientes: [3],
         ativo: true,
     }]]);
 });
@@ -429,14 +413,8 @@ test('a lista de itens aparece mesmo se o cardápio falhar', async () => {
 const CATEGORIAS = [
     { categoriaId: 1, nome: 'Entradas', produtos: [] },
     { categoriaId: 2, nome: 'Bebidas', produtos: [] },
+    { categoriaId: 3, nome: 'Adicionais', produtos: [] },
 ];
-const INGREDIENTES = [
-    { id: 1, nome: 'Tomate', ativo: false },
-    { id: 2, nome: 'Manjericão', ativo: true },
-    { id: 3, nome: 'Queijo', ativo: true },
-    { id: 4, nome: 'Anchova', ativo: false },
-];
-
 function telaEdicaoItem({ atualizar = async () => ({ nome: 'Bruschetta' }), produtos = PRODUTOS } = {}) {
     const campos = {
         nome: new Elemento('input'),
@@ -444,7 +422,6 @@ function telaEdicaoItem({ atualizar = async () => ({ nome: 'Bruschetta' }), prod
         preco: new Elemento('input'),
         categoriaId: new Elemento('select'),
         imagemUrl: new Elemento('input'),
-        ingredientes: new Elemento('select'),
         ativo: new Elemento('input'),
     };
     const form = new Elemento('form');
@@ -452,7 +429,7 @@ function telaEdicaoItem({ atualizar = async () => ({ nome: 'Bruschetta' }), prod
     form.elements = { namedItem: (nome) => campos[nome] };
     instalarDocumento(new Map([
         ...Object.entries(campos),
-        ...['nome', 'preco', 'categoriaId', 'ingredientes'].map((nome) => [`${nome}-erro`, new Elemento()]),
+        ...['nome', 'preco', 'categoriaId'].map((nome) => [`${nome}-erro`, new Elemento()]),
     ]));
     const alerta = alertaFake();
     const sucesso = alertaFake();
@@ -466,13 +443,12 @@ function telaEdicaoItem({ atualizar = async () => ({ nome: 'Bruschetta' }), prod
         produtoId: 10,
         listarItens: async () => produtos,
         obterCategorias: async () => CATEGORIAS,
-        listarTodosIngredientes: async () => INGREDIENTES,
         atualizar,
     });
     return { campos, form, alerta, sucesso, botao, carregamento };
 }
 
-test('edição de item mostra ingrediente inativo já usado e esconde os demais inativos', async () => {
+test('edição de item carrega os dados e a categoria atual do item', async () => {
     const tela = telaEdicaoItem();
     await tela.carregamento;
 
@@ -481,14 +457,9 @@ test('edição de item mostra ingrediente inativo já usado e esconde os demais 
     assert.equal(tela.campos.categoriaId.value, '1');
     assert.equal(tela.form.classes.has('d-none'), false);
     assert.equal(tela.botao.disabled, false);
-
-    const opcoes = tela.campos.ingredientes.options;
-    assert.deepEqual(opcoes.map((opcao) => opcao.textContent),
-        ['Tomate (inativo)', 'Manjericão', 'Queijo']);
-    assert.deepEqual(tela.campos.ingredientes.selectedOptions.map((opcao) => opcao.value), ['1', '2']);
 });
 
-test('edição de item salva mantendo o ingrediente inativo marcado', async () => {
+test('edição de item salva as alterações sem enviar ingredientes', async () => {
     let enviado;
     const tela = telaEdicaoItem({
         atualizar: async (id, dados) => { enviado = { id, dados: { ...dados } }; return { nome: 'Bruschetta Nova' }; },
@@ -505,7 +476,6 @@ test('edição de item salva mantendo o ingrediente inativo marcado', async () =
             nome: 'Bruschetta Nova',
             preco: 30.5,
             categoriaId: 1,
-            ingredientes: [1, 2],
             ativo: true,
             descricao: 'Pão e tomate',
             imagemUrl: 'b.jpg',
@@ -514,27 +484,39 @@ test('edição de item salva mantendo o ingrediente inativo marcado', async () =
     assert.match(tela.sucesso.textContent, /Bruschetta Nova.*atualizado/);
 });
 
-test('edição de item exige ingrediente e preço válidos antes de enviar', async () => {
+test('edição de item permite mover o item para a categoria Adicionais', async () => {
+    let enviado;
+    const tela = telaEdicaoItem({
+        atualizar: async (id, dados) => { enviado = { id, dados: { ...dados } }; return { nome: 'Bruschetta' }; },
+    });
+    await tela.carregamento;
+
+    tela.campos.categoriaId.value = '3';
+    await tela.form.enviar();
+
+    assert.equal(enviado.dados.categoriaId, 3);
+});
+
+test('edição de item exige preço válido antes de enviar', async () => {
     let chamou = false;
     const tela = telaEdicaoItem({ atualizar: async () => { chamou = true; return {}; } });
     await tela.carregamento;
 
-    tela.campos.ingredientes.options.forEach((opcao) => { opcao.selected = false; });
     tela.campos.preco.value = '0';
     await tela.form.enviar();
 
     assert.equal(chamou, false);
 });
 
-test('edição de item mostra o erro de ingrediente no campo certo', async () => {
+test('edição de item mostra o erro de categoria no campo certo', async () => {
     const tela = telaEdicaoItem({
-        atualizar: async () => { throw Object.assign(new Error('x'), { codigo: 'INGREDIENTE_NAO_ENCONTRADO' }); },
+        atualizar: async () => { throw Object.assign(new Error('x'), { codigo: 'CATEGORIA_NAO_ENCONTRADA' }); },
     });
     await tela.carregamento;
 
     await tela.form.enviar();
 
-    assert.equal(tela.campos.ingredientes.classes.has('is-invalid'), true);
+    assert.equal(tela.campos.categoriaId.classes.has('is-invalid'), true);
     assert.equal(tela.botao.disabled, false);
 });
 
@@ -544,88 +526,4 @@ test('edição de item avisa quando o item não existe', async () => {
 
     assert.match(tela.alerta.textContent, /não encontrado/);
     assert.equal(tela.form.classes.has('d-none'), true);
-});
-
-const LISTA_INGREDIENTES = [
-    { id: 1, nome: 'Tomate', ativo: true },
-    { id: 4, nome: 'Anchova', ativo: false },
-];
-
-test('lista ingredientes com desativar e reativar', async () => {
-    instalarDocumento();
-    const tabela = new Elemento('tbody');
-    const chamadas = { desativar: [], atualizar: [] };
-    await inicializarListaIngredientes({
-        tabela,
-        alerta: alertaFake(),
-        listar: async () => LISTA_INGREDIENTES,
-        desativar: async (id) => { chamadas.desativar.push(id); },
-        atualizar: async (id, dados) => { chamadas.atualizar.push([id, dados]); },
-        confirmar: () => true,
-    });
-
-    assert.equal(tabela.children.length, 2);
-    assert.equal(links(tabela.children[0])[0].attributes.href, '/admin/ingrediente-form.html?id=1');
-
-    await botoes(tabela.children[0], 'Desativar')[0].clicar();
-    await botoes(tabela.children[1], 'Reativar')[0].clicar();
-
-    assert.deepEqual(chamadas.desativar, [1]);
-    assert.deepEqual(chamadas.atualizar, [[4, { nome: 'Anchova', ativo: true }]]);
-});
-
-function formularioIngrediente(opcoes = {}) {
-    const campos = { nome: new Elemento('input'), ativo: new Elemento('input') };
-    const form = new Elemento('form');
-    form.elements = { namedItem: (nome) => campos[nome] };
-    form.reset = () => { campos.nome.value = ''; };
-    instalarDocumento(new Map([['nome-erro', new Elemento()]]));
-    const alerta = alertaFake();
-    const sucesso = alertaFake();
-    const botao = new Elemento('button');
-    const carregamento = inicializarFormIngrediente({ form, alerta, sucesso, botao, ...opcoes });
-    return { campos, form, alerta, sucesso, botao, carregamento };
-}
-
-test('cadastra ingrediente e limpa o formulário', async () => {
-    let enviado;
-    const tela = formularioIngrediente({
-        cadastrar: async (dados) => { enviado = { ...dados }; return { id: 9, nome: dados.nome, ativo: true }; },
-    });
-    tela.campos.nome.value = '  Rúcula ';
-    await tela.form.enviar();
-
-    assert.deepEqual(enviado, { nome: 'Rúcula' });
-    assert.equal(tela.campos.nome.value, '');
-    assert.match(tela.sucesso.textContent, /Rúcula.*cadastrado/);
-});
-
-test('edita ingrediente carregando os dados e enviando o status', async () => {
-    let enviado;
-    const tela = formularioIngrediente({
-        ingredienteId: 4,
-        listar: async () => LISTA_INGREDIENTES,
-        atualizar: async (id, dados) => { enviado = { id, dados: { ...dados } }; return { nome: dados.nome }; },
-    });
-    await tela.carregamento;
-
-    assert.equal(tela.campos.nome.value, 'Anchova');
-    assert.equal(tela.campos.ativo.checked, false);
-
-    tela.campos.ativo.checked = true;
-    await tela.form.enviar();
-
-    assert.deepEqual(enviado, { id: 4, dados: { nome: 'Anchova', ativo: true } });
-    assert.match(tela.sucesso.textContent, /atualizado/);
-    assert.equal(tela.campos.nome.value, 'Anchova');
-});
-
-test('ingrediente com nome repetido marca o campo nome', async () => {
-    const tela = formularioIngrediente({
-        cadastrar: async () => { throw Object.assign(new Error('x'), { codigo: 'INGREDIENTE_DUPLICADO' }); },
-    });
-    tela.campos.nome.value = 'Tomate';
-    await tela.form.enviar();
-
-    assert.equal(tela.campos.nome.classes.has('is-invalid'), true);
 });
