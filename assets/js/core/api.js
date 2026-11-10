@@ -288,13 +288,27 @@ export function obterConfiguracaoCaixa() {
 export function atualizarConfiguracaoCaixa({
                                                nomeRestaurante,
                                                taxaServicoPercentual,
+                                               taxaServicoAtiva,
                                                imprimirComandaAoAceitar,
+                                               comandaUnica,
+                                               imprimirComprovanteAoFechar,
                                            }) {
     return requisitarJsonAutenticado('/caixa/configuracao', 'PUT', {
         nomeRestaurante,
         taxaServicoPercentual,
+        taxaServicoAtiva,
         imprimirComandaAoAceitar,
+        comandaUnica,
+        imprimirComprovanteAoFechar,
     });
+}
+
+export function obterResumoCaixa(caixaId) {
+    return requisitarJsonAutenticado(`/caixa/${encodeURIComponent(caixaId)}/resumo`);
+}
+
+export function listarComandas(data) {
+    return requisitarJsonAutenticado(`/comandas?data=${encodeURIComponent(data)}`);
 }
 
 export function obterComanda(pedidoId) {

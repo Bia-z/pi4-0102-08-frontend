@@ -1,6 +1,7 @@
 import { atualizarStatusItemPedido, listarPedidos } from '../../assets/js/core/api.js';
 import { mensagemDeErro } from '../../assets/js/core/ui.js';
 import { conectarAtualizacoesCozinha } from '../../assets/js/core/ws.js';
+import { imprimirComandaDoPedido } from './comandas.js';
 
 const STATUS_ITEM = {
     aguardando: { texto: 'Aguardando', classe: 'text-bg-secondary', proximo: 'em_preparo', acao: 'Iniciar preparo' },
@@ -32,6 +33,7 @@ export async function inicializarPainelCozinha({
     listar = listarPedidos,
     atualizarStatus = atualizarStatusItemPedido,
     conectar = conectarAtualizacoesCozinha,
+    imprimirComanda = imprimirComandaDoPedido,
 } = {}) {
     const lista = document.getElementById('pedidos');
     const vazio = document.getElementById('pedidos-vazio');
@@ -59,6 +61,17 @@ export async function inicializarPainelCozinha({
             await carregar();
         } catch (erro) {
             mostrarAlerta(`Não foi possível atualizar o item. ${mensagemDeErro(erro)}`);
+            botao.disabled = false;
+        }
+    }
+
+    async function imprimir(pedido, botao) {
+        botao.disabled = true;
+        try {
+            await imprimirComanda(pedido.id);
+        } catch (erro) {
+            mostrarAlerta(`Não foi possível imprimir a comanda. ${mensagemDeErro(erro)}`);
+        } finally {
             botao.disabled = false;
         }
     }
@@ -100,7 +113,10 @@ export async function inicializarPainelCozinha({
                 }
                 itens.append(linha);
             }
-            corpo.append(itens);
+            const botaoImprimir = criarElemento('button', 'btn btn-sm btn-outline-secondary mt-3', 'Imprimir comanda');
+            botaoImprimir.type = 'button';
+            botaoImprimir.addEventListener('click', () => imprimir(pedido, botaoImprimir));
+            corpo.append(itens, botaoImprimir);
             cartao.append(corpo);
             coluna.append(cartao);
             lista.append(coluna);

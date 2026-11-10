@@ -2,7 +2,9 @@ import {
     fecharCaixa,
     obterCaixaAberto,
     obterRelatorioCaixa,
+    obterResumoCaixa,
 } from '../../assets/js/core/api.js';
+import { imprimirDocumento, linhasResumoTurno } from './impressao.js';
 import {
     exibirValor,
     FORMATADOR_MOEDA,
@@ -64,7 +66,8 @@ function diferencaDoBackend(valor) {
 
 export async function inicializarFechamento({
     documento = document,
-    api = { fecharCaixa, obterCaixaAberto, obterRelatorioCaixa },
+    api = { fecharCaixa, obterCaixaAberto, obterRelatorioCaixa, obterResumoCaixa },
+    imprimir,
     dataAtual = dataLocalAtual,
     perfil,
     navegar = (url) => window.location.assign(url),
@@ -172,6 +175,18 @@ export async function inicializarFechamento({
             form.hidden = true;
             resumo.hidden = true;
             status.textContent = 'Turno fechado.';
+            if (caixa.id !== undefined && api.obterResumoCaixa) {
+                try {
+                    imprimirDocumento({
+                        titulo: 'Fechamento de turno',
+                        linhas: linhasResumoTurno(await api.obterResumoCaixa(caixa.id)),
+                        documento,
+                        imprimir,
+                    });
+                } catch {
+                    status.textContent = 'Turno fechado. Reimprima o fechamento pelo histórico de turnos.';
+                }
+            }
             if (String(perfil).toUpperCase() === 'CAIXA') navegar('/caixa/abertura.html');
         } catch (falha) {
             mostrarErro(erro, falha);

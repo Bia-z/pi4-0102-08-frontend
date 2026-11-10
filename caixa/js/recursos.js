@@ -7,6 +7,8 @@ export const MENSAGENS_CAIXA = {
     VALOR_INVALIDO: 'Informe um valor válido, igual ou maior que zero.',
     MOVIMENTACAO_INVALIDA: 'Confira o tipo, o valor e o motivo da movimentação.',
     TAXA_SERVICO_INVALIDA: 'A taxa de serviço deve estar entre 0 e 100%.',
+    MESAS_EM_ABERTO: 'Ainda há mesas ocupadas ou em pagamento. Feche todas as contas antes de fechar o turno.',
+    CAIXA_NAO_ENCONTRADO: 'Turno de caixa não encontrado.',
 };
 
 export function mensagemErroCaixa(erro) {
@@ -41,6 +43,15 @@ export function obterValor(objeto, chaves, padrao = '-') {
         if (objeto?.[chave] !== undefined && objeto[chave] !== null) return objeto[chave];
     }
     return padrao;
+}
+
+export function formatarDataHora(valor) {
+    if (valor === null || valor === undefined || valor === '') return '-';
+    const data = new Date(valor);
+    if (Number.isNaN(data.getTime())) return String(valor);
+    return data.toLocaleString('pt-BR', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    });
 }
 
 export function exibirValor(elemento, valor) {
