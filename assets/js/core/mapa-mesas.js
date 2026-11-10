@@ -197,8 +197,10 @@ export async function carregarMapaMesas({
         }
 
         for (const mesa of mesas) {
+            const statusMesa = String(mesa.status ?? '').trim().toLowerCase();
             const card = document.createElement('article');
             card.className = 'card h-100';
+            card.setAttribute('data-status', statusMesa);
 
             const corpo = document.createElement('div');
             corpo.className = 'card-body';
@@ -207,16 +209,15 @@ export async function carregarMapaMesas({
             titulo.className = 'h5 card-title';
             titulo.textContent = `Mesa ${mesa.numero}`;
 
-            const status = document.createElement('p');
-            status.className = 'card-text';
-            status.textContent = `Status: ${STATUS_LABEL[mesa.status] ?? mesa.status}`;
+            const status = document.createElement('span');
+            status.className = 'status-mesa align-self-start mb-3';
+            status.textContent = STATUS_LABEL[mesa.status] ?? mesa.status;
 
             const valor = document.createElement('p');
-            valor.className = 'card-text mb-0';
+            valor.className = 'card-text fw-semibold mb-0';
             valor.textContent = `Consumido: ${FORMATO_MOEDA.format(mesa.valorConsumido)}`;
 
             corpo.append(titulo, status, valor);
-            const statusMesa = String(mesa.status ?? '').trim().toLowerCase();
             const destinos = (dados.mesas ?? []).filter((candidata) => (
                 candidata.mesaId != null
                 && String(candidata.status ?? '').trim().toLowerCase() === 'disponivel'

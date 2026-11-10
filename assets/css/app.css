@@ -1,0 +1,229 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+    --rm-marca: #b5452a;
+    --rm-marca-escura: #8f3420;
+    --rm-marca-clara: #fbeee9;
+    --rm-fundo: #f6f4f1;
+    --rm-superficie: #ffffff;
+    --rm-borda: #e7e2dc;
+    --rm-texto: #2b2622;
+    --rm-texto-suave: #6f665e;
+    --rm-barra: #2b2622;
+    --rm-disponivel: #2f855a;
+    --rm-ocupada: #c05621;
+    --rm-reservada: #2b6cb0;
+    --rm-pagamento: #805ad5;
+    --bs-body-font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --bs-body-bg: var(--rm-fundo);
+    --bs-body-color: var(--rm-texto);
+    --bs-secondary-color: var(--rm-texto-suave);
+    --bs-border-color: var(--rm-borda);
+    --bs-border-radius: .6rem;
+    --bs-primary: var(--rm-marca);
+    --bs-primary-rgb: 181, 69, 42;
+    --bs-link-color: var(--rm-marca);
+    --bs-link-color-rgb: 181, 69, 42;
+    --bs-link-hover-color: var(--rm-marca-escura);
+    --bs-link-hover-color-rgb: 143, 52, 32;
+    --bs-focus-ring-color: rgba(181, 69, 42, .25);
+}
+
+body {
+    background: var(--rm-fundo);
+    min-height: 100vh;
+}
+
+h1, h2, h3, .h1, .h2, .h3, .h4, .h5 {
+    font-weight: 600;
+    letter-spacing: -.01em;
+}
+
+.navbar {
+    background: var(--rm-barra);
+    padding-top: .75rem;
+    padding-bottom: .75rem;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .12);
+    --bs-navbar-color: rgba(255, 255, 255, .75);
+    --bs-navbar-hover-color: #ffffff;
+    --bs-navbar-active-color: #ffffff;
+    --bs-navbar-brand-color: #ffffff;
+    --bs-navbar-brand-hover-color: #ffffff;
+}
+
+.navbar-brand {
+    font-weight: 700;
+    letter-spacing: -.01em;
+}
+
+.navbar .text-secondary {
+    color: rgba(255, 255, 255, .7) !important;
+}
+
+.navbar .btn-outline-secondary {
+    --bs-btn-color: rgba(255, 255, 255, .85);
+    --bs-btn-border-color: rgba(255, 255, 255, .3);
+    --bs-btn-hover-color: var(--rm-barra);
+    --bs-btn-hover-bg: #ffffff;
+    --bs-btn-hover-border-color: #ffffff;
+    --bs-btn-active-color: var(--rm-barra);
+    --bs-btn-active-bg: #ffffff;
+}
+
+.btn {
+    font-weight: 500;
+    border-radius: .5rem;
+}
+
+.btn-primary {
+    --bs-btn-bg: var(--rm-marca);
+    --bs-btn-border-color: var(--rm-marca);
+    --bs-btn-hover-bg: var(--rm-marca-escura);
+    --bs-btn-hover-border-color: var(--rm-marca-escura);
+    --bs-btn-active-bg: var(--rm-marca-escura);
+    --bs-btn-active-border-color: var(--rm-marca-escura);
+    --bs-btn-disabled-bg: var(--rm-marca);
+    --bs-btn-disabled-border-color: var(--rm-marca);
+}
+
+.btn-outline-primary {
+    --bs-btn-color: var(--rm-marca);
+    --bs-btn-border-color: var(--rm-marca);
+    --bs-btn-hover-bg: var(--rm-marca);
+    --bs-btn-hover-border-color: var(--rm-marca);
+    --bs-btn-active-bg: var(--rm-marca-escura);
+    --bs-btn-active-border-color: var(--rm-marca-escura);
+    --bs-btn-disabled-color: var(--rm-marca);
+    --bs-btn-disabled-border-color: var(--rm-marca);
+}
+
+main > nav .btn-outline-primary,
+main nav[aria-label] .btn-outline-primary {
+    --bs-btn-bg: var(--rm-superficie);
+    --bs-btn-border-color: var(--rm-borda);
+    --bs-btn-color: var(--rm-texto);
+    --bs-btn-hover-bg: var(--rm-marca-clara);
+    --bs-btn-hover-color: var(--rm-marca-escura);
+    --bs-btn-hover-border-color: var(--rm-marca);
+    padding: .5rem .9rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .04);
+}
+
+.card {
+    border: 1px solid var(--rm-borda);
+    border-radius: .85rem;
+    box-shadow: 0 1px 3px rgba(43, 38, 34, .06);
+    background: var(--rm-superficie);
+}
+
+.card-title {
+    font-weight: 600;
+}
+
+.form-control,
+.form-select {
+    border-radius: .5rem;
+    padding: .55rem .8rem;
+    background-color: var(--rm-superficie);
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--rm-marca);
+    box-shadow: 0 0 0 .2rem rgba(181, 69, 42, .15);
+}
+
+.form-label {
+    font-weight: 500;
+    font-size: .9rem;
+    color: var(--rm-texto-suave);
+}
+
+.form-check-input:checked {
+    background-color: var(--rm-marca);
+    border-color: var(--rm-marca);
+}
+
+.table {
+    --bs-table-bg: var(--rm-superficie);
+    border-radius: .85rem;
+    overflow: hidden;
+}
+
+.table thead th {
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--rm-texto-suave);
+    background: #faf8f6;
+}
+
+.alert {
+    border-radius: .7rem;
+}
+
+#mapa-mesas .card {
+    border-top: 4px solid var(--rm-cor-status, var(--rm-borda));
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+
+#mapa-mesas .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(43, 38, 34, .1);
+}
+
+#mapa-mesas .card-body {
+    display: flex;
+    flex-direction: column;
+}
+
+#mapa-mesas .card-body > p:last-of-type {
+    margin-bottom: 1rem !important;
+}
+
+#mapa-mesas .card-body > .btn,
+#mapa-mesas .card-body > div > .btn {
+    width: 100%;
+}
+
+#mapa-mesas .card-body > .mt-3 {
+    margin-top: .5rem !important;
+}
+
+[data-status='disponivel'] { --rm-cor-status: var(--rm-disponivel); }
+[data-status='ocupada'] { --rm-cor-status: var(--rm-ocupada); }
+[data-status='reservada'] { --rm-cor-status: var(--rm-reservada); }
+[data-status='em_pagamento'] { --rm-cor-status: var(--rm-pagamento); }
+
+.status-mesa {
+    display: inline-block;
+    padding: .2rem .6rem;
+    border-radius: 999px;
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--rm-cor-status, var(--rm-texto-suave));
+    background: color-mix(in srgb, var(--rm-cor-status, var(--rm-texto-suave)) 12%, transparent);
+}
+
+.pagina-login {
+    background:
+        radial-gradient(circle at 20% 20%, rgba(181, 69, 42, .35), transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(192, 86, 33, .25), transparent 50%),
+        var(--rm-barra);
+}
+
+.pagina-login .card {
+    border: none;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, .35);
+}
+
+.pagina-login h1 {
+    color: var(--rm-marca);
+    font-weight: 700;
+}
+
+.list-group {
+    --bs-list-group-bg: var(--rm-superficie);
+    --bs-list-group-action-hover-bg: var(--rm-marca-clara);
+    --bs-list-group-action-active-bg: var(--rm-marca-clara);
+}

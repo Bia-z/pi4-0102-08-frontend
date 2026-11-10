@@ -155,7 +155,7 @@ test('renderiza número, status e valor consumido para cada mesa', async () => {
         assert.equal(mapa.children.length, 1);
         const [card] = mapa.children;
         assert.equal(card.children[0].children[0].textContent, 'Mesa 7');
-        assert.equal(card.children[0].children[1].textContent, 'Status: Em pagamento');
+        assert.equal(card.children[0].children[1].textContent, 'Em pagamento');
         assert.equal(card.children[0].children[2].textContent, 'Consumido: R$ 42,50');
     } finally {
         restaurarDocumento();
@@ -377,7 +377,7 @@ test('reaplica os filtros ao atualizar o mapa manualmente ou alterar o status', 
         buscaMesa.value = '';
         await filtroStatus.listeners.change();
         assert.equal(mapa.children.length, 1);
-        assert.equal(mapa.children[0].children[0].children[1].textContent, 'Status: Ocupada');
+        assert.equal(mapa.children[0].children[0].children[1].textContent, 'Ocupada');
         await botao.listeners.click();
         assert.equal(chamadas, 3);
     } finally {
