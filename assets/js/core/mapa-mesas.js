@@ -133,6 +133,22 @@ function criarAcaoTransferencia({
     return grupo;
 }
 
+function criarAcaoLancamento(mesa, statusMesa) {
+    if (statusMesa === 'em_pagamento') {
+        const bloqueado = document.createElement('button');
+        bloqueado.type = 'button';
+        bloqueado.className = 'btn btn-outline-secondary mt-3';
+        bloqueado.textContent = 'Mesa em pagamento';
+        bloqueado.disabled = true;
+        return bloqueado;
+    }
+    const lancar = document.createElement('a');
+    lancar.className = 'btn btn-primary mt-3';
+    lancar.href = `/garcom/pedido.html?mesaId=${encodeURIComponent(mesa.mesaId)}`;
+    lancar.textContent = 'Lançar pedido';
+    return lancar;
+}
+
 export async function carregarMapaMesas({
     documento = globalThis.document,
     mapa = documento.getElementById('mapa-mesas'),
@@ -141,6 +157,7 @@ export async function carregarMapaMesas({
     transferir = transferirPedidoParaMesa,
     perfil = lerSessao()?.perfil,
     permitirFechamento = false,
+    permitirLancamento = false,
     statusFiltro,
     buscaNumero,
 } = {}) {
@@ -219,6 +236,7 @@ export async function carregarMapaMesas({
                         transferir,
                         perfil,
                         permitirFechamento,
+                        permitirLancamento,
                         statusFiltro: statusAtual,
                         buscaNumero: buscaAtual,
                     }),
@@ -230,6 +248,9 @@ export async function carregarMapaMesas({
                 abrir.href = `/caixa/pagamento.html?mesaId=${encodeURIComponent(mesa.mesaId)}`;
                 abrir.textContent = 'Ver itens';
                 corpo.appendChild(abrir);
+            }
+            if (permitirLancamento && mesa.mesaId != null) {
+                corpo.appendChild(criarAcaoLancamento(mesa, statusMesa));
             }
             card.appendChild(corpo);
             mapa.appendChild(card);
