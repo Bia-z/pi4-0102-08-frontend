@@ -39,6 +39,7 @@ Todos com a senha `restmanager123`.
 | `cozinha/` | Painel de pedidos em tempo real e impressão de comandas |
 | `caixa/` | Turno, mapa de mesas, pagamento, comprovante, sangria, relatórios e configurações |
 | `assets/js/core/` | Código comum: API, sessão, proteção das páginas, WebSocket e mapa de mesas |
+| `assets/css/`, `assets/img/` | Estilo visual do sistema e logo |
 | `tests/` | Testes automatizados |
 | `docs/` | Fluxos de cada entrega e ADR |
 
