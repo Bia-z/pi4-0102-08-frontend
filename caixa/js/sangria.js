@@ -2,6 +2,7 @@ import {
     criarMovimentacaoCaixa,
     listarMovimentacoesCaixa,
 } from '../../assets/js/core/api.js';
+import { imprimirDocumento, linhasMovimentacao } from './impressao.js';
 import {
     criarCelula,
     FORMATADOR_MOEDA,
@@ -14,13 +15,14 @@ import {
 export async function carregarMovimentacoes({
     documento = document,
     api = listarMovimentacoesCaixa,
+    imprimir,
 } = {}) {
     const corpo = documento.getElementById('movimentacoes-caixa');
     const erro = documento.getElementById('erro-movimentacao');
     corpo.replaceChildren();
     const carregando = documento.createElement('tr');
     const celula = criarCelula(documento, 'Carregando movimentações...');
-    celula.colSpan = 4;
+    celula.colSpan = 5;
     carregando.appendChild(celula);
     corpo.appendChild(carregando);
     try {
@@ -30,18 +32,31 @@ export async function carregarMovimentacoes({
         if (!movimentacoes.length) {
             const linha = documento.createElement('tr');
             const vazia = criarCelula(documento, 'Nenhuma movimentação registrada.');
-            vazia.colSpan = 4;
+            vazia.colSpan = 5;
             linha.appendChild(vazia);
             corpo.appendChild(linha);
             return;
         }
         for (const mov of movimentacoes) {
             const linha = documento.createElement('tr');
+            const acoes = documento.createElement('td');
+            const botao = documento.createElement('button');
+            botao.type = 'button';
+            botao.className = 'btn btn-outline-primary btn-sm';
+            botao.textContent = 'Imprimir';
+            botao.addEventListener('click', () => imprimirDocumento({
+                titulo: mov.tipo === 'REFORCO' ? 'Reforço de caixa' : 'Sangria de caixa',
+                linhas: linhasMovimentacao(mov),
+                documento,
+                imprimir,
+            }));
+            acoes.appendChild(botao);
             linha.append(
                 criarCelula(documento, obterValor(mov, ['data', 'criadoEm', 'dataHora'])),
                 criarCelula(documento, obterValor(mov, ['tipo'])),
                 criarCelula(documento, FORMATADOR_MOEDA.format(Number(obterValor(mov, ['valor'], 0)))),
                 criarCelula(documento, obterValor(mov, ['motivo'])),
+                acoes,
             );
             corpo.appendChild(linha);
         }

@@ -7,11 +7,13 @@ import {
     baixarRelatorioCaixaPdf,
     criarMovimentacaoCaixa,
     fecharCaixa,
+    listarComandas,
     obterCaixaAberto,
     obterComanda,
     obterConfiguracaoCaixa,
     obterHistoricoCaixa,
     obterRelatorioCaixa,
+    obterResumoCaixa,
     listarMovimentacoesCaixa,
 } from '../assets/js/core/api.js';
 import { iniciarPaginaPerfis } from '../assets/js/core/guard.js';
@@ -19,6 +21,10 @@ import { conectarAtualizacoesComandas } from '../assets/js/core/ws.js';
 import { inicializarAbertura } from '../caixa/js/abertura.js';
 import { validarTaxaServico, inicializarConfiguracoes } from '../caixa/js/configuracoes.js';
 import { carregarHistorico } from '../caixa/js/historico.js';
+import { inicializarComandas, renderizarComanda } from '../caixa/js/comandas.js';
+import { imprimirDocumento, linhasMovimentacao, linhasResumoTurno } from '../caixa/js/impressao.js';
+import { carregarMovimentacoes } from '../caixa/js/sangria.js';
+import { iniciarComandasCozinha } from '../cozinha/js/comandas.js';
 import { inicializarRelatorio } from '../caixa/js/relatorio.js';
 
 class ElementoFalso {
@@ -92,13 +98,14 @@ test('exibe carregamento e renderiza os fechamentos retornados pela API', async 
     await consulta;
 
     const celulas = documento.elementos['historico-caixa'].children[0].children;
-    assert.deepEqual(celulas.map((celula) => celula.textContent), [
+    assert.deepEqual(celulas.slice(0, 5).map((celula) => celula.textContent), [
         'NOITE',
         '2026-11-08T18:00:00',
         '2026-11-08T23:00:00',
         '100',
         '250',
     ]);
+    assert.equal(celulas[5].children[0].textContent, 'Imprimir');
     assert.equal(documento.elementos['erro-caixa'].hidden, true);
 });
 
@@ -110,7 +117,7 @@ test('exibe mensagem específica quando não há turnos fechados', async () => {
 
     const linha = documento.elementos['historico-caixa'].children[0];
     assert.equal(linha.children[0].textContent, 'Nenhum turno fechado.');
-    assert.equal(linha.children[0].colSpan, 5);
+    assert.equal(linha.children[0].colSpan, 6);
     assert.equal(documento.elementos['erro-caixa'].hidden, true);
 });
 
@@ -200,9 +207,14 @@ test('usa endpoints autenticados e corpos exatos para os novos recursos de caixa
         await atualizarConfiguracaoCaixa({
             nomeRestaurante: 'Restaurante',
             taxaServicoPercentual: 10,
+            taxaServicoAtiva: true,
             imprimirComandaAoAceitar: true,
+            comandaUnica: false,
+            imprimirComprovanteAoFechar: true,
         });
         await obterComanda(42);
+        await listarComandas('2026-11-10');
+        await obterResumoCaixa(7);
 
         assert.deepEqual(requisicoes.map(({ url, opcoes }) => [url, opcoes.method]), [
             ['/api/caixa/aberto', 'GET'],
@@ -215,6 +227,8 @@ test('usa endpoints autenticados e corpos exatos para os novos recursos de caixa
             ['/api/caixa/configuracao', 'GET'],
             ['/api/caixa/configuracao', 'PUT'],
             ['/api/pedidos/42/comanda', 'GET'],
+            ['/api/comandas?data=2026-11-10', 'GET'],
+            ['/api/caixa/7/resumo', 'GET'],
         ]);
         assert.deepEqual(JSON.parse(requisicoes[1].opcoes.body), { valorAbertura: 25, turno: 'MANHA' });
         assert.deepEqual(JSON.parse(requisicoes[2].opcoes.body), { valorFechamento: 30 });
@@ -224,7 +238,10 @@ test('usa endpoints autenticados e corpos exatos para os novos recursos de caixa
         assert.deepEqual(JSON.parse(requisicoes[8].opcoes.body), {
             nomeRestaurante: 'Restaurante',
             taxaServicoPercentual: 10,
+            taxaServicoAtiva: true,
             imprimirComandaAoAceitar: true,
+            comandaUnica: false,
+            imprimirComprovanteAoFechar: true,
         });
         assert.ok(requisicoes.every(({ opcoes }) => opcoes.headers.Authorization.endsWith('token-caixa')));
     } finally {
@@ -465,7 +482,7 @@ test('permite consulta à CAIXA, restringe alteração e valida taxa de serviço
     const caixa = documentoFalso([
         'form-configuracoes', 'erro-configuracoes', 'sucesso-configuracoes',
         'salvar-configuracoes', 'somente-consulta', 'nome-restaurante',
-        'taxa-servico', 'imprimir-comanda',
+        'taxa-servico', 'taxa-servico-ativa', 'imprimir-comanda', 'comanda-unica', 'imprimir-comprovante',
     ]);
     caixa.elementos['nome-restaurante'].value = '';
     caixa.elementos['taxa-servico'].value = '';
@@ -493,7 +510,7 @@ test('permite consulta à CAIXA, restringe alteração e valida taxa de serviço
     const admin = documentoFalso([
         'form-configuracoes', 'erro-configuracoes', 'sucesso-configuracoes',
         'salvar-configuracoes', 'somente-consulta', 'nome-restaurante',
-        'taxa-servico', 'imprimir-comanda',
+        'taxa-servico', 'taxa-servico-ativa', 'imprimir-comanda', 'comanda-unica', 'imprimir-comprovante',
     ]);
     Object.assign(admin.elementos['form-configuracoes'], {
         nome: admin.elementos['nome-restaurante'],
@@ -508,7 +525,12 @@ test('permite consulta à CAIXA, restringe alteração e valida taxa de serviço
         perfil: 'ADMIN',
         documento: admin,
         api: {
-            obter: async () => ({ nomeRestaurante: 'Casa', taxaServicoPercentual: 10 }),
+            obter: async () => ({
+                nomeRestaurante: 'Casa',
+                taxaServicoPercentual: 10,
+                taxaServicoAtiva: true,
+                comandaUnica: true,
+            }),
             atualizar: async (valor) => { configuracaoEnviada = valor; return valor; },
         },
     });
@@ -517,12 +539,20 @@ test('permite consulta à CAIXA, restringe alteração e valida taxa de serviço
     assert.equal(configuracaoEnviada, undefined);
     assert.match(admin.elementos['erro-configuracoes'].textContent, /entre 0 e 100/);
     admin.elementos['taxa-servico'].value = '15';
+    assert.equal(admin.elementos['taxa-servico-ativa'].checked, true);
+    assert.equal(admin.elementos['comanda-unica'].checked, true);
+    admin.elementos['taxa-servico-ativa'].checked = false;
     admin.elementos['imprimir-comanda'].checked = true;
+    admin.elementos['comanda-unica'].checked = false;
+    admin.elementos['imprimir-comprovante'].checked = true;
     await admin.elementos['form-configuracoes'].listeners.submit({ preventDefault() {} });
     assert.deepEqual(configuracaoEnviada, {
         nomeRestaurante: 'Casa',
         taxaServicoPercentual: 15,
+        taxaServicoAtiva: false,
         imprimirComandaAoAceitar: true,
+        comandaUnica: false,
+        imprimirComprovanteAoFechar: true,
     });
     assert.equal(alteracoes, 0);
 });
@@ -592,4 +622,169 @@ test('assina /topic/comandas com autenticação e encaminha eventos e desconexõ
         globalThis.localStorage = storageOriginal;
         globalThis.window = windowOriginal;
     }
+});
+
+test('monta a comanda de fechamento com totais por forma de pagamento e diferença', () => {
+    const linhas = Object.fromEntries(linhasResumoTurno({
+        caixa: {
+            turno: 'NOITE',
+            abertoEm: '2026-11-10T18:00:00',
+            fechadoEm: '2026-11-10T23:00:00',
+            valorAbertura: 100,
+            valorEsperado: 140,
+            valorFechamento: 150,
+        },
+        totalRecebido: 90,
+        totalDinheiro: 40,
+        totalCredito: 20,
+        totalDebito: 10,
+        totalPix: 15,
+        totalVale: 5,
+        quantidadePagamentos: 4,
+        totalSangrias: 10,
+        totalReforcos: 10,
+    }));
+
+    assert.equal(linhas.Turno, 'NOITE');
+    assert.equal(linhas['Total recebido'], 'R$\u00a090,00');
+    assert.equal(linhas.Pix, 'R$\u00a015,00');
+    assert.equal(linhas['Quantidade de pagamentos'], '4');
+    assert.equal(linhas['Diferença'], 'R$\u00a010,00');
+    assert.match(linhas.Fechamento, /10\/11\/2026/);
+});
+
+test('imprime sangria e reforço com valor, horário, tipo e motivo', async () => {
+    const documento = documentoFalso(['movimentacoes-caixa', 'erro-movimentacao', 'area-impressao']);
+    let impressoes = 0;
+    await carregarMovimentacoes({
+        documento,
+        imprimir: () => { impressoes += 1; },
+        api: async () => [{
+            id: 1, tipo: 'REFORCO', valor: 50, motivo: 'Troco', dataHora: '2026-11-10T14:05:00',
+        }],
+    });
+
+    const linha = documento.elementos['movimentacoes-caixa'].children[0];
+    linha.children[4].children[0].listeners.click();
+
+    const area = documento.elementos['area-impressao'];
+    assert.equal(impressoes, 1);
+    assert.equal(area.children[0].textContent, 'Reforço de caixa');
+    assert.deepEqual(linhasMovimentacao({ tipo: 'SANGRIA', valor: 20, motivo: 'Depósito', dataHora: null }),
+        [['Tipo', 'Sangria'], ['Valor', 'R$\u00a020,00'], ['Data e hora', '-'], ['Motivo', 'Depósito']]);
+});
+
+test('reimprime o fechamento de um turno pelo histórico', async () => {
+    const documento = documentoFalso([
+        'historico-caixa', 'erro-caixa', 'data-fechamento', 'limpar-filtro-data', 'area-impressao',
+    ]);
+    const consultados = [];
+    let impressoes = 0;
+    await carregarHistorico({
+        documento,
+        imprimir: () => { impressoes += 1; },
+        api: async () => ({ fechamentos: [{ id: 9, turno: 'MANHA', fechadoEm: '2026-11-10T12:00:00' }] }),
+        obterResumo: async (id) => {
+            consultados.push(id);
+            return { caixa: { turno: 'MANHA' }, totalRecebido: 10 };
+        },
+    });
+
+    await documento.elementos['historico-caixa'].children[0].children[5].children[0].listeners.click();
+
+    assert.deepEqual(consultados, [9]);
+    assert.equal(impressoes, 1);
+    assert.equal(documento.elementos['area-impressao'].children[0].textContent, 'Fechamento de turno');
+});
+
+test('mostra o horário da comanda e lista as comandas da data escolhida', async () => {
+    const ids = [
+        'form-comanda', 'erro-comanda', 'pedido-id', 'baixar-comanda', 'imprimir-comanda',
+        'data-comandas', 'lista-comandas', 'visualizacao-comanda',
+    ];
+    const documento = documentoFalso(ids);
+    const comanda = {
+        pedidoId: 5,
+        numeroMesa: 3,
+        nomeGarcom: 'Ana',
+        criadaEm: '2026-11-10T12:52:00',
+        itens: [{ itemId: 1, nome: 'Pudim', quantidade: 1, status: 'aguardando' }],
+    };
+    const datas = [];
+    let impressoes = 0;
+    const locationOriginal = globalThis.location;
+    globalThis.location = { search: '' };
+    try {
+        inicializarComandas({
+            documento,
+            hoje: () => '2026-11-10',
+            imprimir: () => { impressoes += 1; },
+            api: { listar: async (data) => { datas.push(data); return [comanda]; } },
+        });
+        await new Promise((resolve) => setImmediate(resolve));
+    } finally {
+        globalThis.location = locationOriginal;
+    }
+
+    assert.deepEqual(datas, ['2026-11-10']);
+    const linha = documento.elementos['lista-comandas'].children[0];
+    assert.equal(linha.children[0].textContent, '5');
+    linha.children[4].children[0].listeners.click();
+    documento.elementos['imprimir-comanda'].listeners.click();
+    assert.equal(impressoes, 1);
+    assert.equal(documento.elementos['baixar-comanda'].disabled, false);
+
+    renderizarComanda(comanda, documento);
+    const detalhes = documento.elementos['visualizacao-comanda'].children[1].children;
+    assert.equal(detalhes[4].textContent, 'Horário');
+    assert.match(detalhes[5].textContent, /10\/11\/2026.*12:52/);
+});
+
+test('cozinha imprime só os itens recebidos e permite reimprimir a última comanda', async () => {
+    const documento = documentoFalso(['status-comandas', 'reimprimir-comanda', 'visualizacao-comanda']);
+    const windowOriginal = globalThis.window;
+    globalThis.window = { addEventListener() {} };
+    let aoAtualizar;
+    let impressoes = 0;
+    let consultas = 0;
+    try {
+        await iniciarComandasCozinha({
+            documento,
+            api: async () => { consultas += 1; return {}; },
+            imprimir: () => { impressoes += 1; },
+            conectar: async (opcoes) => { aoAtualizar = opcoes.aoAtualizar; return { deactivate() {} }; },
+        });
+        documento.elementos['reimprimir-comanda'].disabled = true;
+        await aoAtualizar({
+            pedidoId: 8,
+            numeroMesa: 2,
+            nomeGarcom: 'Ana',
+            criadaEm: '2026-11-10T13:00:00',
+            itens: [{ itemId: 4, nome: 'Suco', quantidade: 1, status: 'em_preparo' }],
+        });
+        documento.elementos['reimprimir-comanda'].listeners.click();
+    } finally {
+        globalThis.window = windowOriginal;
+    }
+
+    const corpoTabela = documento.elementos['visualizacao-comanda'].children[2].children[1];
+    assert.equal(consultas, 0);
+    assert.equal(corpoTabela.children.length, 1);
+    assert.equal(documento.elementos['reimprimir-comanda'].disabled, false);
+    assert.equal(impressoes, 2);
+});
+
+test('imprime documento com título e linhas na área de impressão', () => {
+    const documento = documentoFalso(['area-impressao']);
+    let impressoes = 0;
+    imprimirDocumento({
+        titulo: 'Teste',
+        linhas: [['Total', 'R$ 1,00']],
+        documento,
+        imprimir: () => { impressoes += 1; },
+    });
+    const [titulo, lista] = documento.elementos['area-impressao'].children;
+    assert.equal(titulo.textContent, 'Teste');
+    assert.deepEqual(lista.children.map((filho) => filho.textContent), ['Total', 'R$ 1,00']);
+    assert.equal(impressoes, 1);
 });

@@ -1,5 +1,5 @@
-import { baixarComandaPdf, obterComanda } from '../../assets/js/core/api.js';
-import { mostrarErro, obterValor } from './recursos.js';
+import { baixarComandaPdf, listarComandas, obterComanda } from '../../assets/js/core/api.js';
+import { criarCelula, formatarDataHora, mostrarErro, obterValor } from './recursos.js';
 
 function definir(elemento, objeto, chaves) {
     elemento.textContent = String(obterValor(objeto, chaves));
@@ -19,7 +19,7 @@ export function renderizarComanda(comanda, documento = document) {
     const campos = [
         ['Mesa', ['numeroMesa', 'mesaNumero', 'mesa']],
         ['Garçom', ['garcomNome', 'nomeGarcom', 'garcom']],
-        ['Horário', ['horario', 'criadoEm', 'dataHora', 'data']],
+        ['Horário', ['criadaEm', 'horario', 'criadoEm', 'dataHora', 'data']],
     ];
     for (const [label, chaves] of campos) {
         const termo = documento.createElement('dt');
@@ -33,6 +33,7 @@ export function renderizarComanda(comanda, documento = document) {
                 ? obterValor(garcom, ['nome', 'nomeCompleto', 'codigo'])
                 : '-';
         definir(valor, pedido, chaves);
+        if (label === 'Horário') valor.textContent = formatarDataHora(obterValor(pedido, chaves, null));
         if (valor.textContent === '-' || valor.textContent === '[object Object]') {
             valor.textContent = String(padrao);
         }
@@ -69,26 +70,79 @@ export function renderizarComanda(comanda, documento = document) {
     return raiz;
 }
 
+export function dataLocal(data = new Date()) {
+    const mes = String(data.getMonth() + 1).padStart(2, '0');
+    const dia = String(data.getDate()).padStart(2, '0');
+    return `${data.getFullYear()}-${mes}-${dia}`;
+}
+
 export function inicializarComandas({
     documento = document,
-    api = { obter: obterComanda, baixarPdf: baixarComandaPdf },
+    api = { obter: obterComanda, listar: listarComandas, baixarPdf: baixarComandaPdf },
+    imprimir = () => globalThis.print(),
+    hoje = dataLocal,
 } = {}) {
     const form = documento.getElementById('form-comanda');
     const erro = documento.getElementById('erro-comanda');
     const pedido = documento.getElementById('pedido-id');
     const baixar = documento.getElementById('baixar-comanda');
+    const botaoImprimir = documento.getElementById('imprimir-comanda');
+    const campoData = documento.getElementById('data-comandas');
+    const lista = documento.getElementById('lista-comandas');
     let pedidoCarregado;
+
+    const exibir = (comanda) => {
+        renderizarComanda(comanda, documento);
+        pedidoCarregado = comanda.pedidoId;
+        baixar.disabled = false;
+        botaoImprimir.disabled = false;
+    };
+
+    const listar = async () => {
+        erro.hidden = true;
+        lista.replaceChildren();
+        if (!campoData.value) return;
+        try {
+            const comandas = await api.listar(campoData.value);
+            if (!comandas.length) {
+                const linha = documento.createElement('tr');
+                const vazia = criarCelula(documento, 'Nenhuma comanda nesta data.');
+                vazia.colSpan = 5;
+                linha.appendChild(vazia);
+                lista.appendChild(linha);
+                return;
+            }
+            for (const comanda of comandas) {
+                const linha = documento.createElement('tr');
+                const acoes = documento.createElement('td');
+                const ver = documento.createElement('button');
+                ver.type = 'button';
+                ver.className = 'btn btn-outline-primary btn-sm';
+                ver.textContent = 'Ver';
+                ver.addEventListener('click', () => exibir(comanda));
+                acoes.appendChild(ver);
+                linha.append(
+                    criarCelula(documento, comanda.pedidoId),
+                    criarCelula(documento, comanda.numeroMesa),
+                    criarCelula(documento, comanda.nomeGarcom),
+                    criarCelula(documento, formatarDataHora(comanda.criadaEm)),
+                    acoes,
+                );
+                lista.appendChild(linha);
+            }
+        } catch (falha) {
+            mostrarErro(erro, falha);
+        }
+    };
 
     const consultar = async (pedidoId) => {
         erro.hidden = true;
         documento.getElementById('visualizacao-comanda').textContent = 'Carregando comanda...';
         baixar.disabled = true;
+        botaoImprimir.disabled = true;
         try {
             const dados = await api.obter(pedidoId);
-            const comanda = dados.comanda ?? dados.pedido ?? dados;
-            renderizarComanda(comanda, documento);
-            pedidoCarregado = pedidoId;
-            baixar.disabled = false;
+            exibir(dados.comanda ?? dados.pedido ?? dados);
         } catch (falha) {
             documento.getElementById('visualizacao-comanda').replaceChildren();
             mostrarErro(erro, falha);
@@ -103,6 +157,12 @@ export function inicializarComandas({
         pedido.value = new URLSearchParams(globalThis.location.search).get('pedidoId');
         consultar(pedido.value);
     }
+    campoData.addEventListener('change', listar);
+    botaoImprimir.addEventListener('click', () => {
+        if (pedidoCarregado) imprimir();
+    });
+    campoData.value = hoje();
+    listar();
     baixar.addEventListener('click', async () => {
         if (!pedidoCarregado) return;
         baixar.disabled = true;

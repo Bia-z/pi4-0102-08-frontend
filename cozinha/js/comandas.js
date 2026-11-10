@@ -2,6 +2,21 @@ import { obterComanda } from '../../assets/js/core/api.js';
 import { conectarAtualizacoesComandas } from '../../assets/js/core/ws.js';
 import { renderizarComanda } from '../../caixa/js/comandas.js';
 
+function itensDa(comanda) {
+    return comanda?.itens ?? comanda?.items;
+}
+
+export async function imprimirComandaDoPedido(pedidoId, {
+    documento = document,
+    api = obterComanda,
+    imprimir = () => window.print(),
+} = {}) {
+    const dados = await api(pedidoId);
+    renderizarComanda(dados.comanda ?? dados.pedido ?? dados, documento);
+    documento.getElementById('reimprimir-comanda').disabled = false;
+    imprimir();
+}
+
 export async function iniciarComandasCozinha({
     documento = document,
     api = obterComanda,
@@ -9,20 +24,25 @@ export async function iniciarComandasCozinha({
     imprimir = () => window.print(),
 } = {}) {
     const status = documento.getElementById('status-comandas');
+    const reimprimir = documento.getElementById('reimprimir-comanda');
+    reimprimir.addEventListener('click', () => imprimir());
+
     const atualizar = async (evento) => {
-        const pedidoId = evento.pedidoId ?? evento.comanda?.pedidoId ?? evento.pedido?.id;
-        let comanda;
-        if (pedidoId !== undefined && pedidoId !== null) {
+        let comanda = evento.comanda ?? evento;
+        if (!Array.isArray(itensDa(comanda))) {
+            const pedidoId = evento.pedidoId ?? evento.pedido?.id;
+            if (pedidoId === undefined || pedidoId === null) {
+                throw new Error('A mensagem recebida não contém os itens da comanda.');
+            }
             const dados = await api(pedidoId);
             comanda = dados.comanda ?? dados.pedido ?? dados;
-        } else {
-            comanda = evento.comanda ?? evento;
         }
-        if (!Array.isArray(comanda.itens ?? comanda.items)) {
+        if (!Array.isArray(itensDa(comanda))) {
             throw new Error('A mensagem recebida não contém os itens da comanda.');
         }
         renderizarComanda(comanda, documento);
-        status.textContent = `Comanda do pedido ${comanda.pedidoId ?? pedidoId} recebida.`;
+        reimprimir.disabled = false;
+        status.textContent = `Comanda do pedido ${comanda.pedidoId ?? evento.pedidoId} recebida.`;
         imprimir();
     };
 
