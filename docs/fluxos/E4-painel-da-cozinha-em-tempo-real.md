@@ -2,6 +2,8 @@
 
 **Feito quando:** Cozinha visualiza pedidos novos automaticamente por ordem de chegada via WebSocket.
 
+Quando um item é aceito e passa de `AGUARDANDO` para `EM_PREPARO`, a cozinha também assina `/topic/comandas`. Se a configuração `imprimirComandaAoAceitar` estiver ativa, o Backend publica a comanda; o Frontend busca os detalhes do pedido, exibe pedido, mesa, garçom, horário, itens, quantidades, observações e status, e inicia a impressão.
+
 ## Passos
 
 1. O Garçom finaliza e envia um novo pedido no salão.

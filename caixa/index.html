@@ -9,6 +9,11 @@
 <body>
 <nav class="navbar bg-body-tertiary px-3">
     <span class="navbar-brand mb-0 h1">RestManager · Caixa</span>
+    <div class="d-flex align-items-center gap-2 me-auto">
+        <a id="voltar-caixa" class="btn btn-outline-secondary btn-sm" href="/caixa/index.html"
+           aria-label="Voltar à página anterior">← Voltar</a>
+        <a class="btn btn-outline-secondary btn-sm" href="/caixa/index.html" aria-label="Início do caixa">⌂ Início</a>
+    </div>
     <div>
         <span id="usuario" class="me-3 text-secondary"></span>
         <button id="btn-sair" class="btn btn-outline-secondary btn-sm">Sair</button>
@@ -17,16 +22,39 @@
 
 <main class="container py-4">
     <h2 class="h4">Área: Caixa</h2>
+    <nav class="d-flex flex-wrap gap-2 my-3" aria-label="Operações do caixa">
+        <a class="btn btn-outline-primary btn-sm" href="/caixa/fechamento.html">Fechar turno</a>
+        <a class="btn btn-outline-primary btn-sm" href="/caixa/historico.html">Histórico</a>
+        <a class="btn btn-outline-primary btn-sm" href="/caixa/sangria.html">Sangria / reforço</a>
+        <a class="btn btn-outline-primary btn-sm" href="/caixa/relatorio.html">Relatórios</a>
+        <a class="btn btn-outline-primary btn-sm" href="/caixa/configuracoes.html">Configurações</a>
+        <a class="btn btn-outline-primary btn-sm" href="/caixa/comandas.html">Comandas</a>
+    </nav>
     <section aria-labelledby="titulo-mapa-mesas">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h3 id="titulo-mapa-mesas" class="h5 mb-0">Mapa de mesas</h3>
             <button type="button" id="atualizar-mesas" class="btn btn-outline-primary btn-sm">Atualizar mesas</button>
         </div>
+        <div class="row g-2 mb-3">
+            <div class="col-12 col-sm-6 col-md-4">
+                <label for="buscar-mesa" class="form-label">Pesquisar número da mesa</label>
+                <input id="buscar-mesa" class="form-control" type="search" inputmode="numeric"
+                       placeholder="Ex.: 12" autocomplete="off">
+            </div>
+            <div class="col-12 col-sm-6 col-md-4">
+                <label for="filtro-status-mesa" class="form-label">Filtrar por status</label>
+                <select id="filtro-status-mesa" class="form-select">
+                    <option value="todos">Todos os status</option>
+                    <option value="disponivel">Disponíveis</option>
+                    <option value="ocupada">Ocupadas (inclui em pagamento)</option>
+                    <option value="reservada">Reservadas</option>
+                </select>
+            </div>
+        </div>
         <div id="mapa-mesas" class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-3" aria-live="polite"></div>
         <p id="status-mesas-tempo-real" class="small text-secondary mt-3" role="status" aria-live="polite"></p>
     </section>
 </main>
-
 <script type="importmap">
     {
         "imports": {
@@ -35,18 +63,19 @@
     }
 </script>
 <script type="module">
-    import { iniciarPagina } from '/assets/js/core/guard.js';
+    import { iniciarPaginaCaixa } from '/assets/js/core/guard.js';
     import { carregarMapaMesas, inicializarMapaMesas } from '/assets/js/core/mapa-mesas.js';
     import { conectarAtualizacoesMesas } from '/assets/js/core/ws.js';
 
-    if (iniciarPagina('caixa')) {
+    if (await iniciarPaginaCaixa()) {
+        const carregarMapa = () => carregarMapaMesas({ permitirFechamento: true });
         inicializarMapaMesas({ permitirFechamento: true });
         const status = document.getElementById('status-mesas-tempo-real');
 
         try {
             const cliente = await conectarAtualizacoesMesas({
                 aoConectar: () => { status.textContent = 'Atualizações em tempo real conectadas.'; },
-                aoAtualizar: () => carregarMapaMesas({ permitirFechamento: true }),
+                aoAtualizar: carregarMapa,
                 aoErro: (erro) => { status.textContent = `Atualizações em tempo real indisponíveis: ${erro.message}`; },
             });
             window.addEventListener('pagehide', () => cliente.deactivate());

@@ -14,7 +14,6 @@ async function requisitarJson(caminho, opcoes) {
     return dados;
 }
 
-// CT3 autenticarUsuario: POST /api/auth/login
 export function login(codigo, senha) {
     return requisitarJson('/auth/login', {
         method: 'POST',
@@ -73,25 +72,60 @@ export function cadastrarMesa(mesa) {
     });
 }
 
-export function obterCardapio() {
-    return requisitarAutenticado('/cardapio', { method: 'GET' });
+function enviarJson(caminho, metodo, corpo) {
+    return requisitarAutenticado(caminho, {
+        method: metodo,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpo),
+    });
 }
 
-export function obterIngredientes() {
-    return requisitarAutenticado('/ingredientes', { method: 'GET' });
+export function listarUsuarios() {
+    return requisitarAutenticado('/usuarios', { method: 'GET' });
+}
+
+export function atualizarUsuario(id, usuario) {
+    return enviarJson(`/usuarios/${encodeURIComponent(id)}`, 'PUT', usuario);
+}
+
+export function desativarUsuario(id) {
+    return requisitarAutenticado(`/usuarios/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export function listarProdutos() {
+    return requisitarAutenticado('/produtos', { method: 'GET' });
+}
+
+export function atualizarProduto(id, produto) {
+    return enviarJson(`/produtos/${encodeURIComponent(id)}`, 'PUT', produto);
+}
+
+export function desativarProduto(id) {
+    return requisitarAutenticado(`/produtos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export function obterCardapio() {
+    return requisitarAutenticado('/cardapio', { method: 'GET' });
 }
 
 export function obterMapaMesas() {
     return requisitarAutenticado('/mesas/mapa', { method: 'GET' });
 }
 
-export function listarPedidos({ mesaId } = {}) {
+export function listarPedidos({ mesaId, garcomId } = {}) {
     const parametros = new URLSearchParams();
     if (mesaId !== undefined && mesaId !== null) {
         parametros.set('mesaId', mesaId);
     }
+    if (garcomId !== undefined && garcomId !== null) {
+        parametros.set('garcomId', garcomId);
+    }
     const query = parametros.size ? `?${parametros}` : '';
     return requisitarAutenticado(`/pedidos${query}`, { method: 'GET' });
+}
+
+export function criarPedido({ mesaId, garcomId, itens }) {
+    return enviarJson('/pedidos', 'POST', { mesaId, garcomId, itens });
 }
 
 export function iniciarPagamento(mesaId) {
@@ -110,7 +144,7 @@ export function cancelarPagamento(mesaId) {
 
 const MENSAGENS_ERRO_TRANSFERENCIA = {
     MESA_DESTINO_OCUPADA: 'A mesa de destino não está disponível. Escolha outra mesa.',
-    MESA_EM_PAGAMENTO: 'Não é possível transferir o pedido porque a mesa está em pagamento.',
+    MESA_EM_PAGAMENTO: 'Não é possível transferir o pedido porque a mesa de origem ou de destino está em pagamento.',
     PEDIDO_NAO_EM_ABERTO: 'Somente pedidos em aberto podem ser transferidos.',
     MESA_NAO_ENCONTRADA: 'A mesa de destino não foi encontrada. Atualize a lista e tente novamente.',
 };
@@ -193,4 +227,141 @@ export function processarPagamento(mesaId, { pagamentos, desconto } = {}) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(corpo),
     });
+}
+
+function requisitarJsonAutenticado(caminho, metodo = 'GET', corpo) {
+    const opcoes = { method: metodo };
+    if (corpo !== undefined) {
+        opcoes.headers = { 'Content-Type': 'application/json' };
+        opcoes.body = JSON.stringify(corpo);
+    }
+    return requisitarAutenticado(caminho, opcoes);
+}
+
+function validarRespostaObjetoCaixa(dados) {
+    if (!dados || typeof dados !== 'object' || Array.isArray(dados)) {
+        const erro = new Error('O servidor retornou uma resposta inesperada para o caixa.');
+        erro.codigo = 'RESPOSTA_CAIXA_INVALIDA';
+        throw erro;
+    }
+    return dados;
+}
+
+export async function obterCaixaAberto() {
+    return validarRespostaObjetoCaixa(await requisitarJsonAutenticado('/caixa/aberto'));
+}
+
+export async function abrirCaixa({ valorAbertura, turno }) {
+    return validarRespostaObjetoCaixa(
+        await requisitarJsonAutenticado('/caixa/abrir', 'POST', { valorAbertura, turno }),
+    );
+}
+
+export function fecharCaixa({ valorFechamento, codigoUsuario, senha }) {
+    return requisitarJsonAutenticado('/caixa/fechar', 'POST', {
+        valorFechamento,
+        codigoUsuario,
+        senha,
+    });
+}
+
+export function obterHistoricoCaixa() {
+    return requisitarJsonAutenticado('/caixa/historico');
+}
+
+export function listarMovimentacoesCaixa() {
+    return requisitarJsonAutenticado('/caixa/movimentacoes');
+}
+
+export function criarMovimentacaoCaixa({ tipo, valor, motivo }) {
+    return requisitarJsonAutenticado('/caixa/movimentacoes', 'POST', { tipo, valor, motivo });
+}
+
+export function obterRelatorioCaixa(data) {
+    return requisitarJsonAutenticado(`/caixa/relatorios/${encodeURIComponent(data)}`);
+}
+
+export function obterConfiguracaoCaixa() {
+    return requisitarJsonAutenticado('/caixa/configuracao');
+}
+
+export function atualizarConfiguracaoCaixa({
+                                               nomeRestaurante,
+                                               taxaServicoPercentual,
+                                               taxaServicoAtiva,
+                                               imprimirComandaAoAceitar,
+                                               comandaUnica,
+                                               imprimirComprovanteAoFechar,
+                                           }) {
+    return requisitarJsonAutenticado('/caixa/configuracao', 'PUT', {
+        nomeRestaurante,
+        taxaServicoPercentual,
+        taxaServicoAtiva,
+        imprimirComandaAoAceitar,
+        comandaUnica,
+        imprimirComprovanteAoFechar,
+    });
+}
+
+export function obterResumoCaixa(caixaId) {
+    return requisitarJsonAutenticado(`/caixa/${encodeURIComponent(caixaId)}/resumo`);
+}
+
+export function listarComandas(data) {
+    return requisitarJsonAutenticado(`/comandas?data=${encodeURIComponent(data)}`);
+}
+
+export function obterComanda(pedidoId) {
+    return requisitarJsonAutenticado(`/pedidos/${encodeURIComponent(pedidoId)}/comanda`);
+}
+
+async function baixarPdfAutenticado(caminho, nomeArquivo) {
+    const sessao = lerSessao();
+    if (!sessao?.token) {
+        sair();
+        const erro = new Error('TOKEN_AUSENTE');
+        erro.codigo = 'TOKEN_AUSENTE';
+        erro.status = 401;
+        throw erro;
+    }
+
+    const resposta = await fetch(`${API_BASE}${caminho}`, {
+        method: 'GET',
+        headers: { Authorization: 'Bearer ' + sessao.token },
+    });
+    if (!resposta.ok) {
+        const dados = await resposta.json().catch(() => ({}));
+        const erro = new Error(dados.erro || 'ERRO_DESCONHECIDO');
+        erro.codigo = dados.erro || 'ERRO_DESCONHECIDO';
+        erro.status = resposta.status;
+        if (erro.status === 401 && ['TOKEN_AUSENTE', 'TOKEN_INVALIDO'].includes(erro.codigo)) {
+            sair();
+        }
+        throw erro;
+    }
+
+    const arquivo = resposta.blob
+        ? await resposta.blob()
+        : new Blob([await resposta.arrayBuffer()], { type: 'application/pdf' });
+    const url = URL.createObjectURL(arquivo);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = nomeArquivo;
+    link.target = '_blank';
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+export function baixarRelatorioCaixaPdf(data) {
+    return baixarPdfAutenticado(
+        `/caixa/relatorios/${encodeURIComponent(data)}/pdf`,
+        `relatorio-caixa-${data}.pdf`,
+    );
+}
+
+export function baixarComandaPdf(pedidoId) {
+    return baixarPdfAutenticado(
+        `/pedidos/${encodeURIComponent(pedidoId)}/comanda/pdf`,
+        `comanda-${pedidoId}.pdf`,
+    );
 }

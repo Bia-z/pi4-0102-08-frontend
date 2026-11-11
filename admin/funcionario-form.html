@@ -19,11 +19,11 @@
     <div class="row justify-content-center">
         <div class="col-lg-8">
             <a href="/admin/funcionarios.html" class="link-secondary">Voltar para funcionários</a>
-            <h1 class="h3 mt-3 mb-4">Cadastrar funcionário</h1>
+            <h1 id="titulo-pagina" class="h3 mt-3 mb-4">Cadastrar funcionário</h1>
 
             <div id="cadastro-alerta" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
             <section id="cadastro-sucesso" class="alert alert-success d-none" role="status" aria-live="polite">
-                <h2 class="h5">Funcionário cadastrado com sucesso</h2>
+                <h2 id="sucesso-titulo" class="h5">Funcionário cadastrado com sucesso</h2>
                 <dl id="cadastro-resumo" class="row mb-0"></dl>
             </section>
 
@@ -56,7 +56,7 @@
                 </div>
 
                 <div class="mb-3">
-                    <label for="codigo" class="form-label">Código de funcionário <span class="text-secondary">(opcional)</span></label>
+                    <label for="codigo" class="form-label">Código de funcionário <span id="codigo-opcional" class="text-secondary">(opcional)</span></label>
                     <input id="codigo" name="codigo" class="form-control" type="text" maxlength="20" autocomplete="off" aria-describedby="codigo-ajuda">
                     <div id="codigo-ajuda" class="form-text">Deixe em branco para o sistema gerar um código.</div>
                 </div>
@@ -75,7 +75,8 @@
 
                 <div class="mb-4">
                     <label for="senha" class="form-label">Senha</label>
-                    <input id="senha" name="senha" class="form-control" type="password" autocomplete="new-password" required aria-describedby="senha-erro">
+                    <input id="senha" name="senha" class="form-control" type="password" autocomplete="new-password" required aria-describedby="senha-ajuda-edicao senha-erro">
+                    <div id="senha-ajuda-edicao" class="form-text d-none">Deixe em branco para manter a senha atual.</div>
                     <div id="senha-erro" class="invalid-feedback"></div>
                 </div>
 
@@ -83,6 +84,11 @@
                     <label for="confirmar-senha" class="form-label">Confirmar senha</label>
                     <input id="confirmar-senha" name="confirmarSenha" class="form-control" type="password" autocomplete="new-password" required aria-describedby="confirmar-senha-erro">
                     <div id="confirmar-senha-erro" class="invalid-feedback"></div>
+                </div>
+
+                <div id="grupo-ativo" class="form-check mb-4 d-none">
+                    <input id="ativo" name="ativo" class="form-check-input" type="checkbox" checked>
+                    <label for="ativo" class="form-check-label">Funcionário ativo (pode entrar no sistema)</label>
                 </div>
 
                 <button id="btn-cadastrar" class="btn btn-primary" type="submit">Cadastrar funcionário</button>

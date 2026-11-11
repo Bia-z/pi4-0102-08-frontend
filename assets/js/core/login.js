@@ -1,5 +1,5 @@
 import { login } from './api.js';
-import { salvarSessao, areaInicial } from './auth.js';
+import { salvarSessao, areaInicialAposLogin } from './auth.js';
 import { mensagemDeErro } from './ui.js';
 
 const form = document.getElementById('form-login');
@@ -18,7 +18,7 @@ form.addEventListener('submit', async (evento) => {
 
     try {
         const resposta = await login(codigo, senha);
-        const destino = areaInicial(resposta.perfil);
+        const destino = areaInicialAposLogin(resposta.perfil);
         if (!destino) {
             throw new Error('PERFIL_DESCONHECIDO');
         }
