@@ -80,6 +80,18 @@ function enviarJson(caminho, metodo, corpo) {
     });
 }
 
+export function listarMesas() {
+    return requisitarAutenticado('/mesas', { method: 'GET' });
+}
+
+export function atualizarMesa(id, mesa) {
+    return enviarJson(`/mesas/${encodeURIComponent(id)}`, 'PUT', mesa);
+}
+
+export function excluirMesa(id) {
+    return requisitarAutenticado(`/mesas/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
 export function listarUsuarios() {
     return requisitarAutenticado('/usuarios', { method: 'GET' });
 }
