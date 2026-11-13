@@ -80,6 +80,22 @@ function enviarJson(caminho, metodo, corpo) {
     });
 }
 
+export function listarCategorias() {
+    return requisitarAutenticado('/categorias', { method: 'GET' });
+}
+
+export function cadastrarCategoria(categoria) {
+    return enviarJson('/categorias', 'POST', categoria);
+}
+
+export function atualizarCategoria(id, categoria) {
+    return enviarJson(`/categorias/${encodeURIComponent(id)}`, 'PUT', categoria);
+}
+
+export function desativarCategoria(id) {
+    return requisitarAutenticado(`/categorias/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
 export function listarMesas() {
     return requisitarAutenticado('/mesas', { method: 'GET' });
 }
