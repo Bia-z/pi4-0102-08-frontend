@@ -186,10 +186,12 @@ export async function inicializarAcompanhamento({
         botao.disabled = true;
         try {
             await cancelar(pedido.id, item.id);
-            alerta.classList.add('d-none');
         } catch (erro) {
+            // Recarrega primeiro: o carregar() limpa o alerta quando dá certo
+            await carregar();
             alerta.textContent = `Não foi possível cancelar o item. ${mensagemDeErro(erro)}`;
             alerta.classList.remove('d-none');
+            return;
         }
         await carregar();
     }
