@@ -176,6 +176,13 @@ export function atualizarStatusItemPedido(pedidoId, itemId, novoStatus) {
     );
 }
 
+export function cancelarItemPedido(pedidoId, itemId) {
+    return requisitarAutenticado(
+        `/pedidos/${encodeURIComponent(pedidoId)}/itens/${encodeURIComponent(itemId)}/cancelar`,
+        { method: 'POST' },
+    );
+}
+
 export async function baixarComprovantePedido(pedidoId) {
     if (pedidoId === undefined || pedidoId === null || pedidoId === '') {
         throw new TypeError('Informe um pedido pago para baixar o comprovante.');

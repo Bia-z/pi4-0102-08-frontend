@@ -8,6 +8,9 @@ const MENSAGENS = {
     ITENS_PEDIDO_OBRIGATORIOS: 'Adicione pelo menos um item ao pedido.',
     USUARIO_NAO_ENCONTRADO: 'Não foi possível identificar o garçom. Saia e entre novamente.',
     ACESSO_NEGADO: 'Você não tem permissão para fazer isso.',
+    CANCELAMENTO_NAO_PERMITIDO: 'A cozinha já começou a preparar este item, então ele não pode mais ser cancelado.',
+    PEDIDO_NAO_EM_ABERTO: 'Este pedido já foi fechado.',
+    ITEM_PEDIDO_NAO_ENCONTRADO: 'O item não foi encontrado. A lista foi atualizada.',
 };
 
 export function mensagemDeErro(erro) {
