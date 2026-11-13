@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>RestManager | Categorias</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/assets/css/app.css" rel="stylesheet">
+    <link href="/assets/img/logo-marca.png" rel="icon" type="image/png">
+</head>
+<body>
+<nav class="navbar navbar-expand flex-wrap px-3">
+    <a class="navbar-brand d-flex align-items-center gap-2" href="/admin/funcionarios.html"><img src="/assets/img/logo-marca.png" alt="RestManager" height="32"><span>Administrador</span></a>
+    <ul class="navbar-nav me-auto flex-wrap">
+        <li class="nav-item"><a class="nav-link" href="/admin/funcionarios.html">Funcionários</a></li>
+        <li class="nav-item"><a class="nav-link" href="/admin/itens.html">Itens</a></li>
+        <li class="nav-item"><a class="nav-link active" aria-current="page" href="/admin/categorias.html">Categorias</a></li>
+        <li class="nav-item"><a class="nav-link" href="/admin/mesas.html">Mesas</a></li>
+    </ul>
+    <div class="d-flex align-items-center gap-3">
+        <span id="usuario" class="navbar-text"></span>
+        <button id="btn-sair" class="btn btn-outline-light btn-sm" type="button">Sair</button>
+    </div>
+</nav>
+
+<main class="container py-4">
+    <div class="mb-3">
+        <h1 class="h3 mb-1">Categorias do cardápio</h1>
+        <p class="text-secondary mb-0">Organize como os itens aparecem para o garçom. A ordem menor aparece primeiro.</p>
+    </div>
+
+    <div id="lista-alerta" class="alert alert-danger d-none" role="alert" aria-live="assertive"></div>
+
+    <form id="form-categoria" class="card card-body shadow-sm mb-4" novalidate>
+        <h2 id="titulo-form" class="h5 mb-3">Nova categoria</h2>
+        <div class="row g-3 align-items-start">
+            <div class="col-md-6">
+                <label for="nome" class="form-label">Nome</label>
+                <input id="nome" name="nome" class="form-control" maxlength="80" required aria-describedby="nome-erro">
+                <div id="nome-erro" class="invalid-feedback"></div>
+            </div>
+            <div class="col-md-2">
+                <label for="ordem" class="form-label">Ordem</label>
+                <input id="ordem" name="ordem" class="form-control" type="number" min="0" step="1" required aria-describedby="ordem-erro">
+                <div id="ordem-erro" class="invalid-feedback"></div>
+            </div>
+            <div class="col-md-4 d-flex gap-2 align-self-end">
+                <button id="btn-salvar" class="btn btn-primary flex-grow-1" type="submit">Cadastrar categoria</button>
+                <button id="btn-cancelar-edicao" class="btn btn-outline-secondary d-none" type="button">Cancelar</button>
+            </div>
+        </div>
+    </form>
+
+    <div class="table-responsive card shadow-sm">
+        <table class="table table-hover align-middle mb-0">
+            <thead>
+            <tr>
+                <th scope="col">Ordem</th>
+                <th scope="col">Nome</th>
+                <th scope="col">Itens ativos</th>
+                <th scope="col">Status</th>
+                <th scope="col" class="text-end">Ações</th>
+            </tr>
+            </thead>
+            <tbody id="corpo-categorias"></tbody>
+        </table>
+    </div>
+    <p class="form-text mt-2">Só é possível desativar uma categoria sem itens ativos. Desative ou mude os itens de categoria antes.</p>
+</main>
+
+<script type="module" src="/admin/js/categorias.js"></script>
+</body>
+</html>
