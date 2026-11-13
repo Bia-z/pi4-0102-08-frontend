@@ -91,7 +91,7 @@ test('item cancelado tem etiqueta própria', () => {
 test('confirmação cita quantidade, produto e mesa', () => {
     assert.equal(
         textoConfirmacaoCancelamento({ numeroMesa: 8 }, { quantidade: 1, produtoNome: 'Suco de laranja' }),
-        'Cancelar 1× Suco de laranja da mesa 8?',
+        '1× Suco de laranja sai do pedido da mesa 8 e da conta.',
     );
 });
 

@@ -90,7 +90,7 @@ test('excluir pede confirmação, chama a API e recarrega a lista', async () => 
 
     await botaoExcluir(tabela.children[0]).listeners.click[0]();
 
-    assert.match(mensagemConfirmacao, /^Excluir a mesa 1\?/);
+    assert.match(mensagemConfirmacao, /^A mesa 1 sai do mapa/);
     assert.deepEqual(excluidas, [1]);
     assert.equal(buscas, 2);
     assert.equal(alerta.textContent, 'Mesa 1 excluída.');
