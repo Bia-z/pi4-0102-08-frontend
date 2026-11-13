@@ -1,3 +1,4 @@
+import { confirmar as confirmarAcao } from '../../assets/js/core/confirmar.js';
 import { excluirMesa, listarMesas } from '../../assets/js/core/api.js';
 import {
     botaoAcao,
@@ -38,13 +39,13 @@ export function inicializarListaMesas({
     alerta = document.getElementById('lista-alerta'),
     listar = listarMesas,
     excluir = excluirMesa,
-    confirmar = async (mensagem) => window.confirm(mensagem),
+    confirmar = (mensagem) => confirmarAcao({ titulo: 'Excluir mesa?', mensagem, textoConfirmar: 'Excluir' }),
 } = {}) {
     if (!tabela) return null;
 
     const excluirLinha = async (mesa) => {
         const confirmado = await confirmar(
-            `Excluir a mesa ${mesa.numero}? Ela sai do mapa, mas os pedidos antigos continuam no histórico.`,
+            `A mesa ${mesa.numero} sai do mapa, mas os pedidos antigos continuam no histórico.`,
         );
         if (!confirmado) return;
         esconderAlerta(alerta);

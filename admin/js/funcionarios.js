@@ -1,3 +1,4 @@
+import { confirmar as confirmarAcao } from '../../assets/js/core/confirmar.js';
 import {
     atualizarUsuario,
     desativarUsuario,
@@ -43,7 +44,11 @@ export function inicializarListaFuncionarios({
                                                  listar = listarUsuarios,
                                                  atualizar = atualizarUsuario,
                                                  desativar = desativarUsuario,
-                                                 confirmar = (mensagem) => window.confirm(mensagem),
+                                                 confirmar = (mensagem) => confirmarAcao({
+                                                     titulo: 'Desativar funcionário?',
+                                                     mensagem,
+                                                     textoConfirmar: 'Desativar',
+                                                 }),
                                              } = {}) {
     if (!tabela) return null;
 
@@ -61,9 +66,9 @@ export function inicializarListaFuncionarios({
         await carregar();
     };
 
-    const desativarFuncionario = (usuario) => {
-        if (!confirmar(`Desativar ${usuario.nome}? Esse funcionário não conseguirá mais entrar no sistema.`)) {
-            return Promise.resolve();
+    const desativarFuncionario = async (usuario) => {
+        if (!(await confirmar(`${usuario.nome} não conseguirá mais entrar no sistema. Dá para reativar depois.`))) {
+            return undefined;
         }
         return executar(
             () => desativar(usuario.id),

@@ -1,3 +1,4 @@
+import { confirmar as confirmarAcao } from '../../assets/js/core/confirmar.js';
 import { cancelarItemPedido, listarPedidos } from '../../assets/js/core/api.js';
 import { lerSessao } from '../../assets/js/core/auth.js';
 import { iniciarPagina } from '../../assets/js/core/guard.js';
@@ -21,7 +22,7 @@ export function podeCancelar(item) {
 }
 
 export function textoConfirmacaoCancelamento(pedido, item) {
-    return `Cancelar ${item.quantidade}× ${item.produtoNome} da mesa ${pedido.numeroMesa}?`;
+    return `${item.quantidade}× ${item.produtoNome} sai do pedido da mesa ${pedido.numeroMesa} e da conta.`;
 }
 
 export function aplicarStatusItem(pedidos, evento) {
@@ -74,7 +75,12 @@ export async function inicializarAcompanhamento({
                                                     conectar = conectarAtualizacoesPedidos,
                                                     sessao = lerSessao(),
                                                     cancelar = cancelarItemPedido,
-                                                    confirmar = (texto) => window.confirm(texto),
+                                                    confirmar = (texto) => confirmarAcao({
+                                                        titulo: 'Cancelar item?',
+                                                        mensagem: texto,
+                                                        textoConfirmar: 'Cancelar item',
+                                                        textoCancelar: 'Voltar',
+                                                    }),
                                                 } = {}) {
     const lista = document.getElementById('pedidos');
     const vazio = document.getElementById('pedidos-vazio');
@@ -182,7 +188,7 @@ export async function inicializarAcompanhamento({
     }
 
     async function cancelarItem(pedido, item, botao) {
-        if (!confirmar(textoConfirmacaoCancelamento(pedido, item))) return;
+        if (!(await confirmar(textoConfirmacaoCancelamento(pedido, item)))) return;
         botao.disabled = true;
         try {
             await cancelar(pedido.id, item.id);

@@ -1,3 +1,4 @@
+import { confirmar as confirmarAcao } from '../../assets/js/core/confirmar.js';
 import {
     atualizarProduto,
     desativarProduto,
@@ -32,7 +33,11 @@ export function inicializarListaItens({
                                           obterCategorias = obterCardapio,
                                           atualizar = atualizarProduto,
                                           desativar = desativarProduto,
-                                          confirmar = (mensagem) => window.confirm(mensagem),
+                                          confirmar = (mensagem) => confirmarAcao({
+                                              titulo: 'Desativar item?',
+                                              mensagem,
+                                              textoConfirmar: 'Desativar',
+                                          }),
                                       } = {}) {
     if (!tabela) return null;
 
@@ -50,9 +55,9 @@ export function inicializarListaItens({
         await carregar();
     };
 
-    const desativarItem = (produto) => {
-        if (!confirmar(`Desativar "${produto.nome}"? O item deixa de aparecer no cardápio.`)) {
-            return Promise.resolve();
+    const desativarItem = async (produto) => {
+        if (!(await confirmar(`"${produto.nome}" deixa de aparecer no cardápio. Os pedidos antigos não mudam.`))) {
+            return undefined;
         }
         return executar(
             () => desativar(produto.id),
