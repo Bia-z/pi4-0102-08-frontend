@@ -365,7 +365,7 @@ main nav[aria-label] .btn {
 /* Janela de confirmação (assets/js/core/confirmar.js) */
 .rm-confirmacao .modal-content {
     border-radius: 1rem;
-    border-top: 6px solid transparent !important;
+    overflow: hidden;
     background: var(--rm-bandeira) top / 100% 6px no-repeat, var(--rm-branco);
     animation: rm-confirmacao-entrada .18s ease-out;
 }
