@@ -1,4 +1,4 @@
-import { listarPedidos } from '../../assets/js/core/api.js';
+import { cancelarItemPedido, listarPedidos } from '../../assets/js/core/api.js';
 import { lerSessao } from '../../assets/js/core/auth.js';
 import { iniciarPagina } from '../../assets/js/core/guard.js';
 import { mensagemDeErro } from '../../assets/js/core/ui.js';
@@ -8,10 +8,20 @@ const STATUS_ITEM = {
     aguardando: { texto: 'Aguardando', classe: 'text-bg-secondary' },
     em_preparo: { texto: 'Em preparo', classe: 'text-bg-warning' },
     pronto: { texto: 'Pronto para servir', classe: 'text-bg-success' },
+    cancelado: { texto: 'Cancelado', classe: 'text-bg-dark' },
 };
 
 export function infoStatusItem(status) {
     return STATUS_ITEM[status] ?? { texto: String(status ?? ''), classe: 'text-bg-light' };
+}
+
+// O garçom só cancela o que a cozinha ainda não começou a preparar
+export function podeCancelar(item) {
+    return item.status === 'aguardando';
+}
+
+export function textoConfirmacaoCancelamento(pedido, item) {
+    return `Cancelar ${item.quantidade}× ${item.produtoNome} da mesa ${pedido.numeroMesa}?`;
 }
 
 export function aplicarStatusItem(pedidos, evento) {
@@ -63,6 +73,8 @@ export async function inicializarAcompanhamento({
                                                     listar = listarPedidos,
                                                     conectar = conectarAtualizacoesPedidos,
                                                     sessao = lerSessao(),
+                                                    cancelar = cancelarItemPedido,
+                                                    confirmar = (texto) => window.confirm(texto),
                                                 } = {}) {
     const lista = document.getElementById('pedidos');
     const vazio = document.getElementById('pedidos-vazio');
@@ -127,12 +139,26 @@ export async function inicializarAcompanhamento({
             for (const item of pedido.itens) {
                 const linha = criarElemento('li', 'list-group-item d-flex justify-content-between align-items-start px-0');
                 const descricao = criarElemento('div');
-                descricao.append(criarElemento('span', '', `${item.quantidade}× ${item.produtoNome}`));
+                const nome = criarElemento('span', '', `${item.quantidade}× ${item.produtoNome}`);
+                if (item.status === 'cancelado') {
+                    nome.classList.add('text-decoration-line-through', 'text-secondary');
+                }
+                descricao.append(nome);
                 if (item.observacao) {
                     descricao.append(criarElemento('div', 'small text-secondary', `Obs.: ${item.observacao}`));
                 }
                 const info = infoStatusItem(item.status);
-                linha.append(descricao, criarElemento('span', `badge ${info.classe}`, info.texto));
+                const lado = criarElemento('div', 'd-flex flex-column align-items-end gap-1');
+                lado.append(criarElemento('span', `badge ${info.classe}`, info.texto));
+                if (podeCancelar(item)) {
+                    const botao = criarElemento('button', 'btn btn-sm btn-outline-danger', 'Cancelar');
+                    botao.type = 'button';
+                    botao.dataset.cancelarItem = item.id;
+                    botao.setAttribute('aria-label', `Cancelar ${item.produtoNome} da mesa ${pedido.numeroMesa}`);
+                    botao.addEventListener('click', () => cancelarItem(pedido, item, botao));
+                    lado.append(botao);
+                }
+                linha.append(descricao, lado);
                 itens.append(linha);
             }
             corpo.append(itens);
@@ -155,7 +181,24 @@ export async function inicializarAcompanhamento({
         }
     }
 
+    async function cancelarItem(pedido, item, botao) {
+        if (!confirmar(textoConfirmacaoCancelamento(pedido, item))) return;
+        botao.disabled = true;
+        try {
+            await cancelar(pedido.id, item.id);
+            alerta.classList.add('d-none');
+        } catch (erro) {
+            alerta.textContent = `Não foi possível cancelar o item. ${mensagemDeErro(erro)}`;
+            alerta.classList.remove('d-none');
+        }
+        await carregar();
+    }
+
     function tratarEvento(evento) {
+        // Cancelamento pode fechar o pedido inteiro; a API devolve a lista certa
+        if (evento?.status === 'cancelado') {
+            return carregar();
+        }
         const resultado = aplicarStatusItem(pedidos, evento);
         if (!resultado.encontrado) {
             return carregar();
