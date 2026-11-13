@@ -12,6 +12,38 @@ export function infoStatusItem(status) {
     return STATUS_ITEM[status] ?? { texto: String(status ?? ''), classe: 'text-bg-light' };
 }
 
+// A partir de quantos minutos o pedido chama atenção na cozinha
+export const MINUTOS_ATENCAO = 15;
+export const MINUTOS_ATRASADO = 30;
+
+const NIVEL_ESPERA = {
+    normal: { etiqueta: 'text-bg-light border', borda: '' },
+    atencao: { etiqueta: 'text-bg-warning', borda: 'border-warning border-2' },
+    atrasado: { etiqueta: 'text-bg-danger', borda: 'border-danger border-2' },
+};
+
+export function minutosDesde(dataHora, agora = Date.now()) {
+    const inicio = new Date(dataHora).getTime();
+    if (Number.isNaN(inicio)) return null;
+    return Math.max(0, Math.floor((agora - inicio) / 60000));
+}
+
+export function nivelEspera(minutos) {
+    if (minutos === null) return 'normal';
+    if (minutos >= MINUTOS_ATRASADO) return 'atrasado';
+    if (minutos >= MINUTOS_ATENCAO) return 'atencao';
+    return 'normal';
+}
+
+export function textoEspera(minutos) {
+    if (minutos === null) return '';
+    if (minutos < 1) return 'agora';
+    if (minutos < 60) return `há ${minutos} min`;
+    const horas = Math.floor(minutos / 60);
+    const resto = minutos % 60;
+    return resto === 0 ? `há ${horas} h` : `há ${horas} h ${String(resto).padStart(2, '0')} min`;
+}
+
 export function ordenarPorChegada(pedidos) {
     return [...pedidos].sort((a, b) => new Date(a.dataCriacao) - new Date(b.dataCriacao));
 }
@@ -34,6 +66,8 @@ export async function inicializarPainelCozinha({
     atualizarStatus = atualizarStatusItemPedido,
     conectar = conectarAtualizacoesCozinha,
     imprimirComanda = imprimirComandaDoPedido,
+    agora = () => Date.now(),
+    iniciarRelogio = (atualizar) => setInterval(atualizar, 30000),
 } = {}) {
     const lista = document.getElementById('pedidos');
     const vazio = document.getElementById('pedidos-vazio');
@@ -42,6 +76,7 @@ export async function inicializarPainelCozinha({
     const botaoAtualizar = document.getElementById('atualizar');
 
     let pedidos = [];
+    let tempos = []; // etiqueta de espera de cada cartão na tela
 
     function mostrarStatus(texto, erro = false) {
         status.textContent = texto;
@@ -76,7 +111,20 @@ export async function inicializarPainelCozinha({
         }
     }
 
+    // Atualiza só as etiquetas de espera, sem redesenhar os cartões
+    function atualizarTempos() {
+        for (const { pedido, cartao, espera } of tempos) {
+            const minutos = minutosDesde(pedido.dataCriacao, agora());
+            const nivel = NIVEL_ESPERA[nivelEspera(minutos)];
+            espera.textContent = textoEspera(minutos);
+            espera.className = `badge ${nivel.etiqueta}`;
+            cartao.className = `card h-100 ${nivel.borda}`.trim();
+            espera.title = nivel === NIVEL_ESPERA.normal ? '' : 'Pedido esperando há bastante tempo';
+        }
+    }
+
     function renderizarPedidos() {
+        tempos = [];
         lista.replaceChildren();
         vazio.classList.toggle('d-none', pedidos.length > 0);
 
@@ -85,12 +133,19 @@ export async function inicializarPainelCozinha({
             const cartao = criarElemento('article', 'card h-100');
             const corpo = criarElemento('div', 'card-body');
 
-            const cabecalho = criarElemento('div', 'd-flex justify-content-between align-items-center mb-2');
+            const cabecalho = criarElemento('div', 'd-flex justify-content-between align-items-center gap-2 mb-2');
+            const horario = criarElemento('div', 'd-flex align-items-center gap-2');
+            const espera = criarElemento('span', 'badge');
+            horario.append(
+                criarElemento('span', 'text-secondary small', formatarHora(pedido.dataCriacao)),
+                espera,
+            );
             cabecalho.append(
                 criarElemento('h2', 'h5 mb-0', `Mesa ${pedido.numeroMesa} · Pedido #${pedido.id}`),
-                criarElemento('span', 'text-secondary small', formatarHora(pedido.dataCriacao)),
+                horario,
             );
             corpo.append(cabecalho);
+            tempos.push({ pedido, cartao, espera });
 
             const itens = criarElemento('ul', 'list-group list-group-flush');
             for (const item of pedido.itens) {
@@ -121,6 +176,7 @@ export async function inicializarPainelCozinha({
             coluna.append(cartao);
             lista.append(coluna);
         }
+        atualizarTempos();
     }
 
     async function carregar() {
@@ -137,6 +193,7 @@ export async function inicializarPainelCozinha({
 
     botaoAtualizar.addEventListener('click', carregar);
     await carregar();
+    iniciarRelogio(atualizarTempos);
 
     let primeiraConexao = true;
     try {
