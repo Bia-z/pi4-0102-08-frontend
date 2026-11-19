@@ -53,8 +53,8 @@ export async function inicializarAbertura({
     form.hidden = true;
     botaoContinuar?.addEventListener('click', irParaCaixa);
 
-    // No login do CAIXA o turno já está aberto: mostra as vendas de ontem e deixa
-    // a pessoa seguir para o caixa quando quiser. Falha no resumo não bloqueia o acesso.
+    // Só quando o turno acaba de ser aberto no login (o anterior foi fechado): mostra as
+    // vendas de ontem e deixa a pessoa seguir para o caixa. Falha no resumo não bloqueia o acesso.
     const exibirResumoAnterior = async () => {
         const dataAnterior = dataDiaAnterior(agora());
         try {
@@ -84,7 +84,7 @@ export async function inicializarAbertura({
         status.textContent = `Turno aberto: ${obterValor(caixa, ['turno'])} · Valor de abertura: ${
             obterValor(caixa, ['valorAbertura'])}`;
         form.hidden = true;
-        if (redirecionarAposAbertura) await seguirAposAbertura();
+        if (redirecionarAposAbertura) irParaCaixa();
     };
 
     const consultarTurno = async () => {

@@ -81,10 +81,9 @@ test('encaminha CAIXA à abertura pós-login e preserva as áreas dos demais per
     assert.equal(areaInicialAposLogin('garcom'), '/garcom/index.html');
 });
 
-test('CAIXA com turno aberto vê o resumo de ontem e segue ao clicar em continuar', async () => {
+test('CAIXA com turno já aberto entra direto no caixa, sem pedir abertura nem resumo', async () => {
     const documento = criarDocumento();
     const navegacoes = [];
-    const datasConsultadas = [];
     let consultas = 0;
     const resultado = await inicializarAbertura({
         documento,
@@ -97,27 +96,16 @@ test('CAIXA com turno aberto vê o resumo de ontem e segue ao clicar em continua
                 return { caixa: { turno: 'MANHA', valorAbertura: 100 } };
             },
             abrirCaixa: async () => assert.fail('não deve abrir outro turno'),
-            obterRelatorioCaixa: async (data) => {
-                datasConsultadas.push(data);
-                return RELATORIO_ONTEM;
-            },
+            obterRelatorioCaixa: async () => assert.fail('não deve consultar o resumo com turno já aberto'),
         },
     });
 
     assert.equal(resultado, true);
     assert.equal(consultas, 1);
-    assert.deepEqual(datasConsultadas, ['2026-11-07']);
-    assert.deepEqual(navegacoes, []);
-    assert.equal(documento.elementos['form-abertura'].hidden, true);
-    assert.match(documento.elementos['status-caixa'].textContent, /MANHA/);
-    assert.equal(documento.elementos['resumo-dia-anterior'].hidden, false);
-    assert.equal(documento.elementos['anterior-data'].textContent, '07/11/2026');
-    assert.match(documento.elementos['anterior-total-recebido'].textContent, /350,50/);
-    assert.equal(documento.elementos['anterior-quantidade-pagamentos'].textContent, '7');
-    assert.equal(documento.elementos['continuar-caixa'].hidden, false);
-
-    documento.elementos['continuar-caixa'].listeners.click();
     assert.deepEqual(navegacoes, ['/caixa/index.html']);
+    assert.equal(documento.elementos['form-abertura'].hidden, true);
+    assert.equal(documento.elementos['resumo-dia-anterior'].hidden, true);
+    assert.equal(documento.elementos['continuar-caixa'].hidden, true);
 });
 
 test('falha ao carregar o resumo de ontem não bloqueia o acesso ao caixa', async () => {
@@ -128,8 +116,8 @@ test('falha ao carregar o resumo de ontem não bloqueia o acesso ao caixa', asyn
         fluxoLogin: true,
         navegar: (url) => navegacoes.push(url),
         api: {
-            obterCaixaAberto: async () => ({ turno: 'NOITE', valorAbertura: 0 }),
-            abrirCaixa: async () => assert.fail('não deve abrir outro turno'),
+            obterCaixaAberto: async () => { throw erroApi('CAIXA_NAO_ABERTO', 404); },
+            abrirCaixa: async () => {},
             obterRelatorioCaixa: async () => { throw new TypeError('fetch failed'); },
         },
     });
@@ -167,8 +155,7 @@ test('erro de rede não libera o caixa e permite repetir a consulta', async () =
 
     await documento.elementos['tentar-novamente'].listeners.click();
     assert.equal(consultas, 2);
-    assert.equal(documento.elementos['resumo-dia-anterior'].hidden, false);
-    documento.elementos['continuar-caixa'].listeners.click();
+    assert.equal(documento.elementos['resumo-dia-anterior'].hidden, true);
     assert.deepEqual(navegacoes, ['/caixa/index.html']);
 });
 
@@ -262,12 +249,9 @@ test('conflito ao abrir automaticamente consulta o turno existente', async () =>
 
     assert.deepEqual(aberturas, [{ valorAbertura: 0, turno: obterTurnoAtual() }]);
     assert.equal(consultas, 2);
-    assert.deepEqual(navegacoes, []);
-    assert.equal(documento.elementos['form-abertura'].hidden, true);
-    assert.equal(documento.elementos['resumo-dia-anterior'].hidden, false);
-
-    documento.elementos['continuar-caixa'].listeners.click();
     assert.deepEqual(navegacoes, ['/caixa/index.html']);
+    assert.equal(documento.elementos['form-abertura'].hidden, true);
+    assert.equal(documento.elementos['resumo-dia-anterior'].hidden, true);
 });
 
 test('abertura manual fora do login redireciona direto, sem consultar o resumo de ontem', async () => {
