@@ -1,5 +1,6 @@
-import { baixarComandaPdf, listarComandas, obterComanda } from '../../assets/js/core/api.js';
-import { criarCelula, formatarDataHora, mostrarErro, obterValor } from './recursos.js';
+import { baixarComandaPdf, cancelarPedidoPago, listarComandas, obterComanda } from '../../assets/js/core/api.js';
+import { solicitarAutorizacao } from '../../assets/js/core/autorizacao.js';
+import { criarCelula, formatarDataHora, mensagemErroCaixa, mostrarErro, obterValor } from './recursos.js';
 
 function definir(elemento, objeto, chaves) {
     elemento.textContent = String(obterValor(objeto, chaves));
@@ -99,18 +100,29 @@ export function dataLocal(data = new Date()) {
 
 export function inicializarComandas({
                                         documento = document,
-                                        api = { obter: obterComanda, listar: listarComandas, baixarPdf: baixarComandaPdf },
+                                        api = {
+                                            obter: obterComanda,
+                                            listar: listarComandas,
+                                            baixarPdf: baixarComandaPdf,
+                                            cancelar: cancelarPedidoPago,
+                                        },
+                                        autorizar = solicitarAutorizacao,
                                         imprimir = () => globalThis.print(),
                                         hoje = dataLocal,
                                     } = {}) {
     const form = documento.getElementById('form-comanda');
     const erro = documento.getElementById('erro-comanda');
+    const sucesso = documento.getElementById('sucesso-comanda');
     const pedido = documento.getElementById('pedido-id');
     const baixar = documento.getElementById('baixar-comanda');
     const botaoImprimir = documento.getElementById('imprimir-comanda');
     const campoData = documento.getElementById('data-comandas');
     const lista = documento.getElementById('lista-comandas');
     let pedidoCarregado;
+
+    const limparSucesso = () => {
+        if (sucesso) sucesso.hidden = true;
+    };
 
     const exibir = (comanda) => {
         renderizarComanda(comanda, documento);
@@ -119,8 +131,29 @@ export function inicializarComandas({
         botaoImprimir.disabled = false;
     };
 
+    const cancelarPedido = async (comanda) => {
+        erro.hidden = true;
+        limparSucesso();
+        const cancelado = await autorizar({
+            titulo: 'Cancelar pedido pago',
+            mensagem: `O pedido ${comanda.pedidoId} (mesa ${comanda.numeroMesa}) já foi pago. `
+                + 'Para cancelá-lo, informe o código e a senha de um administrador.',
+            textoConfirmar: 'Cancelar pedido',
+            aoConfirmar: (credenciais) => api.cancelar(comanda.pedidoId, credenciais),
+            mensagemErro: mensagemErroCaixa,
+        }, documento);
+        if (!cancelado) return;
+        await listar();
+        if (pedidoCarregado === comanda.pedidoId) await consultar(comanda.pedidoId);
+        if (sucesso) {
+            sucesso.textContent = `Pedido ${comanda.pedidoId} cancelado.`;
+            sucesso.hidden = false;
+        }
+    };
+
     const listar = async () => {
         erro.hidden = true;
+        limparSucesso();
         lista.replaceChildren();
         if (!campoData.value) return;
         try {
@@ -142,6 +175,14 @@ export function inicializarComandas({
                 ver.textContent = 'Ver';
                 ver.addEventListener('click', () => exibir(comanda));
                 acoes.appendChild(ver);
+                if (String(comanda.statusPedido ?? '').toLowerCase() === 'pago') {
+                    const cancelar = documento.createElement('button');
+                    cancelar.type = 'button';
+                    cancelar.className = 'btn btn-outline-danger btn-sm ms-1';
+                    cancelar.textContent = 'Cancelar pedido';
+                    cancelar.addEventListener('click', () => cancelarPedido(comanda));
+                    acoes.appendChild(cancelar);
+                }
                 const pagamento = descreverPagamento(comanda.statusPedido);
                 const celulaPagamento = criarCelula(documento, pagamento ? '' : '-');
                 if (pagamento) {
@@ -167,6 +208,7 @@ export function inicializarComandas({
 
     const consultar = async (pedidoId) => {
         erro.hidden = true;
+        limparSucesso();
         documento.getElementById('visualizacao-comanda').textContent = 'Carregando comanda...';
         baixar.disabled = true;
         botaoImprimir.disabled = true;

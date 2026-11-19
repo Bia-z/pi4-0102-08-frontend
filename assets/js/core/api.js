@@ -354,6 +354,14 @@ export function obterComanda(pedidoId) {
     return requisitarJsonAutenticado(`/pedidos/${encodeURIComponent(pedidoId)}/comanda`);
 }
 
+export function cancelarPedidoPago(pedidoId, { codigoUsuario, senha }) {
+    return requisitarJsonAutenticado(
+        `/pedidos/${encodeURIComponent(pedidoId)}/cancelar`,
+        'POST',
+        { codigoUsuario, senha },
+    );
+}
+
 async function baixarPdfAutenticado(caminho, nomeArquivo) {
     const sessao = lerSessao();
     if (!sessao?.token) {

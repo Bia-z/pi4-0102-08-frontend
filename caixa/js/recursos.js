@@ -9,6 +9,9 @@ export const MENSAGENS_CAIXA = {
     TAXA_SERVICO_INVALIDA: 'A taxa de serviço deve estar entre 0 e 100%.',
     MESAS_EM_ABERTO: 'Ainda há mesas ocupadas ou em pagamento. Feche todas as contas antes de fechar o turno.',
     CAIXA_NAO_ENCONTRADO: 'Turno de caixa não encontrado.',
+    PEDIDO_NAO_ENCONTRADO: 'Pedido não encontrado.',
+    PEDIDO_NAO_FECHADO: 'Só é possível cancelar pedidos que já foram pagos.',
+    PEDIDO_JA_CANCELADO: 'Este pedido já foi cancelado.',
 };
 
 export function mensagemErroCaixa(erro) {

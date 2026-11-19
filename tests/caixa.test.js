@@ -5,6 +5,7 @@ import {
     atualizarConfiguracaoCaixa,
     baixarComandaPdf,
     baixarRelatorioCaixaPdf,
+    cancelarPedidoPago,
     criarMovimentacaoCaixa,
     fecharCaixa,
     listarComandas,
@@ -762,6 +763,182 @@ test('mostra o horário da comanda e lista as comandas da data escolhida', async
     const detalhes = documento.elementos['visualizacao-comanda'].children[2].children;
     assert.equal(detalhes[4].textContent, 'Horário');
     assert.match(detalhes[5].textContent, /10\/11\/2026.*12:52/);
+});
+
+test('cancela pedido pago com POST autenticado e credenciais do administrador', async () => {
+    const fetchOriginal = globalThis.fetch;
+    const storageOriginal = globalThis.localStorage;
+    let requisicao;
+    globalThis.localStorage = { getItem: () => JSON.stringify({ token: 'token-caixa' }) };
+    globalThis.fetch = async (url, opcoes) => {
+        requisicao = { url, opcoes };
+        return { ok: true, status: 200, json: async () => ({ pedidoId: 42, statusPedido: 'cancelado' }) };
+    };
+
+    try {
+        const resposta = await cancelarPedidoPago(42, { codigoUsuario: 'admin', senha: 'restmanager123' });
+
+        assert.deepEqual(resposta, { pedidoId: 42, statusPedido: 'cancelado' });
+        assert.equal(requisicao.url, '/api/pedidos/42/cancelar');
+        assert.equal(requisicao.opcoes.method, 'POST');
+        assert.equal(requisicao.opcoes.headers.Authorization, 'Bearer token-caixa');
+        assert.deepEqual(JSON.parse(requisicao.opcoes.body), { codigoUsuario: 'admin', senha: 'restmanager123' });
+    } finally {
+        globalThis.fetch = fetchOriginal;
+        globalThis.localStorage = storageOriginal;
+    }
+});
+
+const IDS_COMANDAS = [
+    'form-comanda', 'erro-comanda', 'sucesso-comanda', 'pedido-id', 'baixar-comanda', 'imprimir-comanda',
+    'data-comandas', 'lista-comandas', 'visualizacao-comanda',
+];
+
+function comandaDe(pedidoId, statusPedido) {
+    return {
+        pedidoId,
+        numeroMesa: 3,
+        nomeGarcom: 'Ana',
+        criadaEm: '2026-11-10T12:52:00',
+        statusPedido,
+        itens: [],
+    };
+}
+
+async function iniciarComandas(opcoes) {
+    const documento = documentoFalso(IDS_COMANDAS);
+    const locationOriginal = globalThis.location;
+    globalThis.location = { search: '' };
+    try {
+        inicializarComandas({ documento, hoje: () => '2026-11-10', ...opcoes });
+        await new Promise((resolve) => setImmediate(resolve));
+    } finally {
+        globalThis.location = locationOriginal;
+    }
+    return documento;
+}
+
+test('mostra "Cancelar pedido" só nas comandas pagas', async () => {
+    const documento = await iniciarComandas({
+        api: { listar: async () => [comandaDe(5, 'pago'), comandaDe(6, 'em_preparo'), comandaDe(7, 'cancelado')] },
+    });
+
+    const [pago, emPreparo, cancelado] = documento.elementos['lista-comandas'].children;
+    assert.deepEqual(pago.children[5].children.map((botao) => botao.textContent), ['Ver', 'Cancelar pedido']);
+    assert.match(pago.children[5].children[1].className, /btn-outline-danger/);
+    assert.deepEqual(emPreparo.children[5].children.map((botao) => botao.textContent), ['Ver']);
+    assert.deepEqual(cancelado.children[5].children.map((botao) => botao.textContent), ['Ver']);
+});
+
+test('cancelar pedido pago pede autorização, cancela na API e atualiza a lista', async () => {
+    let pedidoCancelado = false;
+    const cancelamentos = [];
+    let janelaPedida;
+    let listagens = 0;
+    const documento = await iniciarComandas({
+        api: {
+            listar: async () => {
+                listagens += 1;
+                return [comandaDe(5, pedidoCancelado ? 'cancelado' : 'pago')];
+            },
+            cancelar: async (pedidoId, credenciais) => {
+                cancelamentos.push([pedidoId, credenciais]);
+                pedidoCancelado = true;
+                return { pedidoId, statusPedido: 'cancelado' };
+            },
+        },
+        autorizar: async (opcoes) => {
+            janelaPedida = opcoes;
+            await opcoes.aoConfirmar({ codigoUsuario: 'admin', senha: 'restmanager123' });
+            return true;
+        },
+    });
+
+    const linhaPaga = documento.elementos['lista-comandas'].children[0];
+    await linhaPaga.children[5].children[1].listeners.click();
+
+    assert.match(janelaPedida.mensagem, /pedido 5/);
+    assert.match(janelaPedida.mensagem, /administrador/);
+    assert.equal(janelaPedida.textoConfirmar, 'Cancelar pedido');
+    assert.deepEqual(cancelamentos, [[5, { codigoUsuario: 'admin', senha: 'restmanager123' }]]);
+    assert.equal(listagens, 2, 'lista de novo depois de cancelar');
+    const linhaAtualizada = documento.elementos['lista-comandas'].children[0];
+    assert.equal(linhaAtualizada.children[4].children[0].textContent, 'Cancelado');
+    assert.equal(linhaAtualizada.children[5].children.length, 1, 'o botão some depois de cancelado');
+    assert.equal(documento.elementos['sucesso-comanda'].hidden, false);
+    assert.equal(documento.elementos['sucesso-comanda'].textContent, 'Pedido 5 cancelado.');
+    assert.equal(documento.elementos['erro-comanda'].hidden, true);
+});
+
+test('recarrega a comanda aberta na tela quando ela é cancelada', async () => {
+    let pedidoCancelado = false;
+    const consultas = [];
+    const documento = await iniciarComandas({
+        api: {
+            listar: async () => [comandaDe(5, pedidoCancelado ? 'cancelado' : 'pago')],
+            obter: async (pedidoId) => {
+                consultas.push(pedidoId);
+                return comandaDe(pedidoId, 'cancelado');
+            },
+            cancelar: async () => { pedidoCancelado = true; },
+        },
+        autorizar: async (opcoes) => {
+            await opcoes.aoConfirmar({ codigoUsuario: 'admin', senha: 'x' });
+            return true;
+        },
+    });
+
+    const linha = documento.elementos['lista-comandas'].children[0];
+    linha.children[5].children[0].listeners.click();
+    await linha.children[5].children[1].listeners.click();
+
+    assert.deepEqual(consultas, [5]);
+    const aviso = documento.elementos['visualizacao-comanda'].children[1];
+    assert.equal(aviso.textContent, 'Este pedido foi cancelado.');
+});
+
+test('não cancela nem recarrega quando a autorização é fechada sem confirmar', async () => {
+    let listagens = 0;
+    let cancelamentos = 0;
+    const documento = await iniciarComandas({
+        api: {
+            listar: async () => { listagens += 1; return [comandaDe(5, 'pago')]; },
+            cancelar: async () => { cancelamentos += 1; },
+        },
+        autorizar: async () => false,
+    });
+
+    await documento.elementos['lista-comandas'].children[0].children[5].children[1].listeners.click();
+
+    assert.equal(cancelamentos, 0);
+    assert.equal(listagens, 1);
+    assert.equal(documento.elementos['sucesso-comanda'].hidden, true);
+});
+
+test('traduz o erro da API na janela de autorização', async () => {
+    let mensagemErro;
+    const documento = await iniciarComandas({
+        api: { listar: async () => [comandaDe(5, 'pago')] },
+        autorizar: async (opcoes) => {
+            mensagemErro = opcoes.mensagemErro;
+            return false;
+        },
+    });
+
+    await documento.elementos['lista-comandas'].children[0].children[5].children[1].listeners.click();
+
+    assert.equal(
+        mensagemErro(Object.assign(new Error('CREDENCIAIS_INVALIDAS'), { codigo: 'CREDENCIAIS_INVALIDAS' })),
+        'Código/senha incorretos ou o perfil informado não pode autorizar esta operação.',
+    );
+    assert.equal(
+        mensagemErro(Object.assign(new Error('PEDIDO_JA_CANCELADO'), { codigo: 'PEDIDO_JA_CANCELADO' })),
+        'Este pedido já foi cancelado.',
+    );
+    assert.equal(
+        mensagemErro(Object.assign(new Error('PEDIDO_NAO_FECHADO'), { codigo: 'PEDIDO_NAO_FECHADO' })),
+        'Só é possível cancelar pedidos que já foram pagos.',
+    );
 });
 
 test('avisa na comanda se o pedido já foi pago, não foi pago ou foi cancelado', () => {
