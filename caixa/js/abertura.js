@@ -1,5 +1,5 @@
-import { abrirCaixa, obterCaixaAberto } from '../../assets/js/core/api.js';
-import { mostrarErro, obterValor, validarValorPositivo } from './recursos.js';
+import { abrirCaixa, obterCaixaAberto, obterRelatorioCaixa } from '../../assets/js/core/api.js';
+import { exibirValor, mostrarErro, obterValor, validarValorPositivo } from './recursos.js';
 
 export function converterValorAbertura(valor) {
     const texto = String(valor).trim();
@@ -15,14 +15,30 @@ export function obterTurnoAtual(data = new Date()) {
     return 'NOITE';
 }
 
+export function dataDiaAnterior(data = new Date()) {
+    const ontem = new Date(data.getFullYear(), data.getMonth(), data.getDate() - 1);
+    const mes = String(ontem.getMonth() + 1).padStart(2, '0');
+    const dia = String(ontem.getDate()).padStart(2, '0');
+    return `${ontem.getFullYear()}-${mes}-${dia}`;
+}
+
+const CAMPOS_RESUMO_ANTERIOR = [
+    ['anterior-total-recebido', 'totalRecebido'],
+    ['anterior-total-dinheiro', 'totalDinheiro'],
+    ['anterior-total-credito', 'totalCredito'],
+    ['anterior-total-debito', 'totalDebito'],
+    ['anterior-total-pix', 'totalPix'],
+    ['anterior-total-vale', 'totalVale'],
+];
+
 export async function inicializarAbertura({
-    documento = document,
-    api = { abrirCaixa, obterCaixaAberto },
-    fluxoLogin = false,
-    redirecionarAposAbertura = fluxoLogin,
-    navegar = (url) => window.location.assign(url),
-    agora = () => new Date(),
-} = {}) {
+                                              documento = document,
+                                              api = { abrirCaixa, obterCaixaAberto, obterRelatorioCaixa },
+                                              fluxoLogin = false,
+                                              redirecionarAposAbertura = fluxoLogin,
+                                              navegar = (url) => window.location.assign(url),
+                                              agora = () => new Date(),
+                                          } = {}) {
     const form = documento.getElementById('form-abertura');
     const status = documento.getElementById('status-caixa');
     const erro = documento.getElementById('erro-caixa');
@@ -31,14 +47,44 @@ export async function inicializarAbertura({
     const campoTurno = documento.getElementById('turno');
     const botao = documento.getElementById('abrir-turno');
     const tentarNovamente = documento.getElementById('tentar-novamente');
+    const resumoAnterior = documento.getElementById('resumo-dia-anterior');
+    const botaoContinuar = documento.getElementById('continuar-caixa');
     const irParaCaixa = () => navegar('/caixa/index.html');
     form.hidden = true;
+    botaoContinuar?.addEventListener('click', irParaCaixa);
 
-    const exibirTurnoAberto = (caixa) => {
+    // No login do CAIXA o turno já está aberto: mostra as vendas de ontem e deixa
+    // a pessoa seguir para o caixa quando quiser. Falha no resumo não bloqueia o acesso.
+    const exibirResumoAnterior = async () => {
+        const dataAnterior = dataDiaAnterior(agora());
+        try {
+            const dados = await api.obterRelatorioCaixa(dataAnterior);
+            const relatorio = dados?.relatorio ?? dados;
+            for (const [id, chave] of CAMPOS_RESUMO_ANTERIOR) {
+                exibirValor(documento.getElementById(id), obterValor(relatorio, [chave], 0));
+            }
+            documento.getElementById('anterior-quantidade-pagamentos').textContent = String(
+                obterValor(relatorio, ['quantidadePagamentos'], 0),
+            );
+            documento.getElementById('anterior-data').textContent = dataAnterior.split('-').reverse().join('/');
+            resumoAnterior.hidden = false;
+        } catch {
+            erro.textContent = 'Turno aberto, mas não foi possível carregar o resumo das vendas de ontem.';
+            erro.hidden = false;
+        }
+        botaoContinuar.hidden = false;
+    };
+
+    const seguirAposAbertura = async () => {
+        if (fluxoLogin) await exibirResumoAnterior();
+        else irParaCaixa();
+    };
+
+    const exibirTurnoAberto = async (caixa) => {
         status.textContent = `Turno aberto: ${obterValor(caixa, ['turno'])} · Valor de abertura: ${
             obterValor(caixa, ['valorAbertura'])}`;
         form.hidden = true;
-        if (redirecionarAposAbertura) irParaCaixa();
+        if (redirecionarAposAbertura) await seguirAposAbertura();
     };
 
     const consultarTurno = async () => {
@@ -49,7 +95,7 @@ export async function inicializarAbertura({
         try {
             const dados = await api.obterCaixaAberto();
             const caixa = dados?.caixa ?? dados;
-            exibirTurnoAberto(caixa);
+            await exibirTurnoAberto(caixa);
             return true;
         } catch (falha) {
             if (falha.codigo === 'CAIXA_NAO_ABERTO' || falha.status === 404) {
@@ -59,14 +105,14 @@ export async function inicializarAbertura({
                         await api.abrirCaixa({ valorAbertura: 0, turno: obterTurnoAtual(agora()) });
                         sucesso.textContent = 'Turno aberto automaticamente com valor inicial de R$ 0,00.';
                         sucesso.hidden = false;
-                        status.textContent = 'Turno aberto. Redirecionando...';
-                        irParaCaixa();
+                        status.textContent = 'Turno aberto.';
+                        await seguirAposAbertura();
                         return true;
                     } catch (falhaAbertura) {
                         if (falhaAbertura.codigo === 'CAIXA_JA_ABERTO') {
                             try {
                                 const dados = await api.obterCaixaAberto();
-                                exibirTurnoAberto(dados?.caixa ?? dados);
+                                await exibirTurnoAberto(dados?.caixa ?? dados);
                                 return true;
                             } catch (falhaConsulta) {
                                 mostrarErro(erro, falhaConsulta);

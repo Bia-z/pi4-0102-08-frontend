@@ -24,7 +24,6 @@
     <h1 class="h3 mb-3">Configurações do restaurante</h1>
     <p id="erro-configuracoes" class="alert alert-danger" role="alert" hidden></p>
     <p id="sucesso-configuracoes" class="alert alert-success" role="status" hidden></p>
-    <p id="somente-consulta" class="text-secondary" hidden>Seu perfil pode consultar, mas não alterar as configurações.</p>
     <form id="form-configuracoes" class="card card-body col-md-8" hidden>
         <label for="nome-restaurante" class="form-label">Nome do restaurante</label>
         <input id="nome-restaurante" class="form-control mb-3" type="text" required maxlength="120">
@@ -46,6 +45,13 @@
             <input id="imprimir-comprovante" class="form-check-input" type="checkbox">
             <label for="imprimir-comprovante" class="form-check-label">Imprimir comprovante automaticamente ao fechar a conta</label>
         </div>
+        <hr>
+        <p class="text-secondary small">Para salvar, informe o código e a senha de quem autoriza a alteração (caixa ou administrador).</p>
+        <label for="codigo-usuario" class="form-label">Código da pessoa que autoriza</label>
+        <input id="codigo-usuario" class="form-control mb-3" type="text" autocomplete="username" required>
+        <label for="senha-autorizacao" class="form-label">Senha da pessoa que autoriza</label>
+        <input id="senha-autorizacao" class="form-control mb-3" type="password"
+               autocomplete="current-password" required>
         <button id="salvar-configuracoes" class="btn btn-primary" type="submit">Salvar configurações</button>
     </form>
 </main>
@@ -53,7 +59,7 @@
     import { iniciarPaginaCaixa } from '/assets/js/core/guard.js';
     import { inicializarConfiguracoes } from '/caixa/js/configuracoes.js';
     const sessao = await iniciarPaginaCaixa();
-    if (sessao) await inicializarConfiguracoes({ perfil: sessao.perfil });
+    if (sessao) await inicializarConfiguracoes();
 </script>
 </body>
 </html>

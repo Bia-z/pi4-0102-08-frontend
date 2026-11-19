@@ -327,6 +327,8 @@ export function atualizarConfiguracaoCaixa({
                                                imprimirComandaAoAceitar,
                                                comandaUnica,
                                                imprimirComprovanteAoFechar,
+                                               codigoUsuario,
+                                               senha,
                                            }) {
     return requisitarJsonAutenticado('/caixa/configuracao', 'PUT', {
         nomeRestaurante,
@@ -335,6 +337,8 @@ export function atualizarConfiguracaoCaixa({
         imprimirComandaAoAceitar,
         comandaUnica,
         imprimirComprovanteAoFechar,
+        codigoUsuario,
+        senha,
     });
 }
 

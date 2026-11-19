@@ -4,6 +4,7 @@ import { areaInicialAposLogin } from '../assets/js/core/auth.js';
 import { iniciarPaginaCaixa } from '../assets/js/core/guard.js';
 import {
     converterValorAbertura,
+    dataDiaAnterior,
     inicializarAbertura,
     obterTurnoAtual,
 } from '../caixa/js/abertura.js';
@@ -36,13 +37,38 @@ function criarDocumento() {
         'turno',
         'abrir-turno',
         'tentar-novamente',
+        'resumo-dia-anterior',
+        'continuar-caixa',
+        'anterior-data',
+        'anterior-total-recebido',
+        'anterior-total-dinheiro',
+        'anterior-total-credito',
+        'anterior-total-debito',
+        'anterior-total-pix',
+        'anterior-total-vale',
+        'anterior-quantidade-pagamentos',
     ];
     const elementos = Object.fromEntries(ids.map((id) => [id, new ElementoFalso()]));
+    // No HTML real estes elementos começam escondidos.
+    elementos['resumo-dia-anterior'].hidden = true;
+    elementos['continuar-caixa'].hidden = true;
     return {
         elementos,
         getElementById: (id) => elementos[id],
     };
 }
+
+const RELATORIO_ONTEM = {
+    data: '2026-11-07',
+    totalRecebido: 350.5,
+    totalDinheiro: 100,
+    totalCredito: 150.5,
+    totalDebito: 50,
+    totalPix: 40,
+    totalVale: 10,
+    quantidadePagamentos: 7,
+    movimentacoes: [],
+};
 
 function erroApi(codigo, status = 400) {
     return Object.assign(new Error(codigo), { codigo, status });
@@ -55,28 +81,65 @@ test('encaminha CAIXA à abertura pós-login e preserva as áreas dos demais per
     assert.equal(areaInicialAposLogin('garcom'), '/garcom/index.html');
 });
 
-test('CAIXA com turno aberto segue para a tela principal sem exibir o formulário', async () => {
+test('CAIXA com turno aberto vê o resumo de ontem e segue ao clicar em continuar', async () => {
     const documento = criarDocumento();
     const navegacoes = [];
+    const datasConsultadas = [];
     let consultas = 0;
     const resultado = await inicializarAbertura({
         documento,
         fluxoLogin: true,
         navegar: (url) => navegacoes.push(url),
+        agora: () => new Date(2026, 10, 8, 9),
         api: {
             obterCaixaAberto: async () => {
                 consultas += 1;
                 return { caixa: { turno: 'MANHA', valorAbertura: 100 } };
             },
             abrirCaixa: async () => assert.fail('não deve abrir outro turno'),
+            obterRelatorioCaixa: async (data) => {
+                datasConsultadas.push(data);
+                return RELATORIO_ONTEM;
+            },
         },
     });
 
     assert.equal(resultado, true);
     assert.equal(consultas, 1);
-    assert.deepEqual(navegacoes, ['/caixa/index.html']);
+    assert.deepEqual(datasConsultadas, ['2026-11-07']);
+    assert.deepEqual(navegacoes, []);
     assert.equal(documento.elementos['form-abertura'].hidden, true);
     assert.match(documento.elementos['status-caixa'].textContent, /MANHA/);
+    assert.equal(documento.elementos['resumo-dia-anterior'].hidden, false);
+    assert.equal(documento.elementos['anterior-data'].textContent, '07/11/2026');
+    assert.match(documento.elementos['anterior-total-recebido'].textContent, /350,50/);
+    assert.equal(documento.elementos['anterior-quantidade-pagamentos'].textContent, '7');
+    assert.equal(documento.elementos['continuar-caixa'].hidden, false);
+
+    documento.elementos['continuar-caixa'].listeners.click();
+    assert.deepEqual(navegacoes, ['/caixa/index.html']);
+});
+
+test('falha ao carregar o resumo de ontem não bloqueia o acesso ao caixa', async () => {
+    const documento = criarDocumento();
+    const navegacoes = [];
+    await inicializarAbertura({
+        documento,
+        fluxoLogin: true,
+        navegar: (url) => navegacoes.push(url),
+        api: {
+            obterCaixaAberto: async () => ({ turno: 'NOITE', valorAbertura: 0 }),
+            abrirCaixa: async () => assert.fail('não deve abrir outro turno'),
+            obterRelatorioCaixa: async () => { throw new TypeError('fetch failed'); },
+        },
+    });
+
+    assert.equal(documento.elementos['resumo-dia-anterior'].hidden, true);
+    assert.equal(documento.elementos['erro-caixa'].hidden, false);
+    assert.match(documento.elementos['erro-caixa'].textContent, /resumo das vendas de ontem/);
+    assert.equal(documento.elementos['continuar-caixa'].hidden, false);
+    documento.elementos['continuar-caixa'].listeners.click();
+    assert.deepEqual(navegacoes, ['/caixa/index.html']);
 });
 
 test('erro de rede não libera o caixa e permite repetir a consulta', async () => {
@@ -94,14 +157,18 @@ test('erro de rede não libera o caixa e permite repetir a consulta', async () =
                 return { turno: 'TARDE', valorAbertura: 10 };
             },
             abrirCaixa: async () => assert.fail('não deve abrir um turno existente'),
+            obterRelatorioCaixa: async () => RELATORIO_ONTEM,
         },
     });
     assert.equal(documento.elementos['form-abertura'].hidden, true);
     assert.equal(documento.elementos['tentar-novamente'].hidden, false);
     assert.match(documento.elementos['erro-caixa'].textContent, /Não foi possível conectar/);
+    assert.equal(documento.elementos['continuar-caixa'].hidden, true);
 
     await documento.elementos['tentar-novamente'].listeners.click();
     assert.equal(consultas, 2);
+    assert.equal(documento.elementos['resumo-dia-anterior'].hidden, false);
+    documento.elementos['continuar-caixa'].listeners.click();
     assert.deepEqual(navegacoes, ['/caixa/index.html']);
 });
 
@@ -117,13 +184,19 @@ test('CAIXA sem turno aberto abre automaticamente com valor inicial zero', async
         api: {
             obterCaixaAberto: async () => { throw erroApi('CAIXA_NAO_ABERTO', 404); },
             abrirCaixa: async (dados) => { aberturas.push(dados); },
+            obterRelatorioCaixa: async () => RELATORIO_ONTEM,
         },
     });
     assert.deepEqual(aberturas, [{ valorAbertura: 0, turno: 'TARDE' }]);
-    assert.deepEqual(navegacoes, ['/caixa/index.html']);
+    assert.deepEqual(navegacoes, []);
     assert.equal(documento.elementos['form-abertura'].hidden, true);
     assert.equal(documento.elementos['tentar-novamente'].hidden, true);
     assert.match(documento.elementos['sucesso-caixa'].textContent, /R\$ 0,00/);
+    assert.equal(documento.elementos['resumo-dia-anterior'].hidden, false);
+    assert.equal(documento.elementos['continuar-caixa'].hidden, false);
+
+    documento.elementos['continuar-caixa'].listeners.click();
+    assert.deepEqual(navegacoes, ['/caixa/index.html']);
 });
 
 test('abertura automática falha sem liberar o caixa e oferece nova tentativa', async () => {
@@ -183,13 +256,50 @@ test('conflito ao abrir automaticamente consulta o turno existente', async () =>
                 aberturas.push(dados);
                 throw erroApi('CAIXA_JA_ABERTO', 409);
             },
+            obterRelatorioCaixa: async () => RELATORIO_ONTEM,
         },
     });
 
     assert.deepEqual(aberturas, [{ valorAbertura: 0, turno: obterTurnoAtual() }]);
     assert.equal(consultas, 2);
-    assert.deepEqual(navegacoes, ['/caixa/index.html']);
+    assert.deepEqual(navegacoes, []);
     assert.equal(documento.elementos['form-abertura'].hidden, true);
+    assert.equal(documento.elementos['resumo-dia-anterior'].hidden, false);
+
+    documento.elementos['continuar-caixa'].listeners.click();
+    assert.deepEqual(navegacoes, ['/caixa/index.html']);
+});
+
+test('abertura manual fora do login redireciona direto, sem consultar o resumo de ontem', async () => {
+    const documento = criarDocumento();
+    const navegacoes = [];
+    let consultas = 0;
+    documento.elementos['valor-abertura'].value = '50,00';
+    documento.elementos.turno.value = 'TARDE';
+    await inicializarAbertura({
+        documento,
+        redirecionarAposAbertura: true,
+        navegar: (url) => navegacoes.push(url),
+        api: {
+            obterCaixaAberto: async () => {
+                consultas += 1;
+                if (consultas === 1) throw erroApi('CAIXA_NAO_ABERTO', 404);
+                return { turno: 'TARDE', valorAbertura: 0 };
+            },
+            abrirCaixa: async () => { throw erroApi('CAIXA_JA_ABERTO', 409); },
+            obterRelatorioCaixa: async () => assert.fail('não deve consultar o resumo fora do login'),
+        },
+    });
+
+    await documento.elementos['form-abertura'].listeners.submit({ preventDefault() {} });
+    assert.deepEqual(navegacoes, ['/caixa/index.html']);
+    assert.equal(documento.elementos['resumo-dia-anterior'].hidden, true);
+});
+
+test('calcula o dia anterior inclusive na virada de mês e de ano', () => {
+    assert.equal(dataDiaAnterior(new Date(2026, 10, 8, 9)), '2026-11-07');
+    assert.equal(dataDiaAnterior(new Date(2026, 2, 1, 0, 30)), '2026-02-28');
+    assert.equal(dataDiaAnterior(new Date(2027, 0, 1, 23, 59)), '2026-12-31');
 });
 
 test('valida valores monetários com até duas casas decimais', () => {

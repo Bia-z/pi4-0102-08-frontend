@@ -5,6 +5,18 @@ function definir(elemento, objeto, chaves) {
     elemento.textContent = String(obterValor(objeto, chaves));
 }
 
+export function descreverPagamento(statusPedido) {
+    if (!statusPedido) return null;
+    const status = String(statusPedido).toLowerCase();
+    if (status === 'pago') {
+        return { texto: 'Pago', aviso: 'Este pedido já foi pago.', classe: 'success' };
+    }
+    if (status === 'cancelado') {
+        return { texto: 'Cancelado', aviso: 'Este pedido foi cancelado.', classe: 'secondary' };
+    }
+    return { texto: 'Não pago', aviso: 'Este pedido ainda não foi pago.', classe: 'warning' };
+}
+
 export function renderizarComanda(comanda, documento = document) {
     const raiz = documento.getElementById('visualizacao-comanda');
     const pedido = comanda.pedido ?? comanda;
@@ -66,7 +78,16 @@ export function renderizarComanda(comanda, documento = document) {
         corpo.appendChild(linha);
     }
     tabela.append(cabecalho, corpo);
-    raiz.append(titulo, detalhes, tabela);
+    const pagamento = descreverPagamento(obterValor(pedido, ['statusPedido'], null));
+    if (pagamento) {
+        const aviso = documento.createElement('div');
+        aviso.className = `alert alert-${pagamento.classe} mb-3`;
+        aviso.setAttribute?.('role', 'status');
+        aviso.textContent = pagamento.aviso;
+        raiz.append(titulo, aviso, detalhes, tabela);
+    } else {
+        raiz.append(titulo, detalhes, tabela);
+    }
     return raiz;
 }
 
@@ -77,11 +98,11 @@ export function dataLocal(data = new Date()) {
 }
 
 export function inicializarComandas({
-    documento = document,
-    api = { obter: obterComanda, listar: listarComandas, baixarPdf: baixarComandaPdf },
-    imprimir = () => globalThis.print(),
-    hoje = dataLocal,
-} = {}) {
+                                        documento = document,
+                                        api = { obter: obterComanda, listar: listarComandas, baixarPdf: baixarComandaPdf },
+                                        imprimir = () => globalThis.print(),
+                                        hoje = dataLocal,
+                                    } = {}) {
     const form = documento.getElementById('form-comanda');
     const erro = documento.getElementById('erro-comanda');
     const pedido = documento.getElementById('pedido-id');
@@ -107,7 +128,7 @@ export function inicializarComandas({
             if (!comandas.length) {
                 const linha = documento.createElement('tr');
                 const vazia = criarCelula(documento, 'Nenhuma comanda nesta data.');
-                vazia.colSpan = 5;
+                vazia.colSpan = 6;
                 linha.appendChild(vazia);
                 lista.appendChild(linha);
                 return;
@@ -121,11 +142,20 @@ export function inicializarComandas({
                 ver.textContent = 'Ver';
                 ver.addEventListener('click', () => exibir(comanda));
                 acoes.appendChild(ver);
+                const pagamento = descreverPagamento(comanda.statusPedido);
+                const celulaPagamento = criarCelula(documento, pagamento ? '' : '-');
+                if (pagamento) {
+                    const selo = documento.createElement('span');
+                    selo.className = `badge text-bg-${pagamento.classe}`;
+                    selo.textContent = pagamento.texto;
+                    celulaPagamento.appendChild(selo);
+                }
                 linha.append(
                     criarCelula(documento, comanda.pedidoId),
                     criarCelula(documento, comanda.numeroMesa),
                     criarCelula(documento, comanda.nomeGarcom),
                     criarCelula(documento, formatarDataHora(comanda.criadaEm)),
+                    celulaPagamento,
                     acoes,
                 );
                 lista.appendChild(linha);

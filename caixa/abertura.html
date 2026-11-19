@@ -28,6 +28,25 @@
     <button id="tentar-novamente" class="btn btn-outline-primary mb-3" type="button" hidden>
         Tentar consultar novamente
     </button>
+    <section id="resumo-dia-anterior" class="card mb-3 col-md-6" aria-labelledby="titulo-resumo-anterior" hidden>
+        <div class="card-body">
+            <h2 id="titulo-resumo-anterior" class="h5">
+                Resumo das vendas de ontem <span id="anterior-data" class="text-secondary small"></span>
+            </h2>
+            <dl class="row mb-0">
+                <dt class="col-7">Total recebido</dt><dd id="anterior-total-recebido" class="col-5 text-end fw-bold"></dd>
+                <dt class="col-7">Dinheiro</dt><dd id="anterior-total-dinheiro" class="col-5 text-end"></dd>
+                <dt class="col-7">Crédito</dt><dd id="anterior-total-credito" class="col-5 text-end"></dd>
+                <dt class="col-7">Débito</dt><dd id="anterior-total-debito" class="col-5 text-end"></dd>
+                <dt class="col-7">Pix</dt><dd id="anterior-total-pix" class="col-5 text-end"></dd>
+                <dt class="col-7">Vale-alimentação</dt><dd id="anterior-total-vale" class="col-5 text-end"></dd>
+                <dt class="col-7">Quantidade de pagamentos</dt><dd id="anterior-quantidade-pagamentos" class="col-5 text-end"></dd>
+            </dl>
+        </div>
+    </section>
+    <button id="continuar-caixa" class="btn btn-primary mb-3" type="button" hidden>
+        Continuar para o caixa
+    </button>
     <form id="form-abertura" class="card card-body col-md-6" hidden>
         <label for="turno" class="form-label">Turno</label>
         <select id="turno" class="form-select mb-3" required>

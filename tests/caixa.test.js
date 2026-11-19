@@ -21,7 +21,7 @@ import { conectarAtualizacoesComandas } from '../assets/js/core/ws.js';
 import { inicializarAbertura } from '../caixa/js/abertura.js';
 import { validarTaxaServico, inicializarConfiguracoes } from '../caixa/js/configuracoes.js';
 import { carregarHistorico } from '../caixa/js/historico.js';
-import { inicializarComandas, renderizarComanda } from '../caixa/js/comandas.js';
+import { descreverPagamento, inicializarComandas, renderizarComanda } from '../caixa/js/comandas.js';
 import { imprimirDocumento, linhasMovimentacao, linhasResumoTurno } from '../caixa/js/impressao.js';
 import { carregarMovimentacoes } from '../caixa/js/sangria.js';
 import { iniciarComandasCozinha } from '../cozinha/js/comandas.js';
@@ -211,6 +211,8 @@ test('usa endpoints autenticados e corpos exatos para os novos recursos de caixa
             imprimirComandaAoAceitar: true,
             comandaUnica: false,
             imprimirComprovanteAoFechar: true,
+            codigoUsuario: 'caixa1',
+            senha: 'senha-segura',
         });
         await obterComanda(42);
         await listarComandas('2026-11-10');
@@ -242,6 +244,8 @@ test('usa endpoints autenticados e corpos exatos para os novos recursos de caixa
             imprimirComandaAoAceitar: true,
             comandaUnica: false,
             imprimirComprovanteAoFechar: true,
+            codigoUsuario: 'caixa1',
+            senha: 'senha-segura',
         });
         assert.ok(requisicoes.every(({ opcoes }) => opcoes.headers.Authorization.endsWith('token-caixa')));
     } finally {
@@ -472,73 +476,90 @@ test('consulta totais diários, exibe carregamento e mostra erro em falha de rel
     assert.match(erro.elementos['erro-relatorio'].textContent, /Acesso negado/);
 });
 
-test('permite consulta à CAIXA, restringe alteração e valida taxa de serviço para ADMIN', async () => {
+test('CAIXA e ADMIN alteram as configurações com autorização por senha e a taxa é validada', async () => {
     assert.equal(validarTaxaServico('0'), true);
     assert.equal(validarTaxaServico('100'), true);
     assert.equal(validarTaxaServico('-0.1'), false);
     assert.equal(validarTaxaServico('100.1'), false);
     assert.equal(validarTaxaServico('abc'), false);
 
-    const caixa = documentoFalso([
+    const IDS_CONFIG = [
         'form-configuracoes', 'erro-configuracoes', 'sucesso-configuracoes',
-        'salvar-configuracoes', 'somente-consulta', 'nome-restaurante',
-        'taxa-servico', 'taxa-servico-ativa', 'imprimir-comanda', 'comanda-unica', 'imprimir-comprovante',
-    ]);
-    caixa.elementos['nome-restaurante'].value = '';
-    caixa.elementos['taxa-servico'].value = '';
-    caixa.elementos['form-configuracoes'].nome = caixa.elementos['nome-restaurante'];
-    caixa.elementos['form-configuracoes'].taxa = caixa.elementos['taxa-servico'];
-    caixa.elementos['form-configuracoes'].imprimir = caixa.elementos['imprimir-comanda'];
-    caixa.elementos['form-configuracoes'].botao = caixa.elementos['salvar-configuracoes'];
-    let alteracoes = 0;
-    await inicializarConfiguracoes({
-        perfil: 'CAIXA',
-        documento: caixa,
-        api: {
-            obter: async () => ({
-                nomeRestaurante: 'Casa',
-                taxaServicoPercentual: 12,
-                imprimirComandaAoAceitar: false,
-            }),
-            atualizar: async () => { alteracoes += 1; },
-        },
+        'salvar-configuracoes', 'nome-restaurante', 'taxa-servico', 'taxa-servico-ativa',
+        'imprimir-comanda', 'comanda-unica', 'imprimir-comprovante',
+        'codigo-usuario', 'senha-autorizacao',
+    ];
+    const montar = (valores) => {
+        const doc = documentoFalso(IDS_CONFIG);
+        Object.assign(doc.elementos['nome-restaurante'], { value: valores.nome });
+        Object.assign(doc.elementos['taxa-servico'], { value: valores.taxa });
+        doc.elementos['codigo-usuario'].value = valores.codigo ?? '';
+        doc.elementos['senha-autorizacao'].value = valores.senha ?? '';
+        return doc;
+    };
+    const apiCom = (enviadas, resposta = (valor) => valor) => ({
+        obter: async () => ({
+            nomeRestaurante: 'Casa',
+            taxaServicoPercentual: 10,
+            taxaServicoAtiva: true,
+            comandaUnica: true,
+        }),
+        atualizar: async (valor) => { enviadas.push(valor); return resposta(valor); },
     });
-    assert.equal(caixa.elementos['nome-restaurante'].value, 'Casa');
-    assert.equal(caixa.elementos['nome-restaurante'].disabled, true);
-    assert.equal(caixa.elementos['somente-consulta'].hidden, false);
 
-    const admin = documentoFalso([
-        'form-configuracoes', 'erro-configuracoes', 'sucesso-configuracoes',
-        'salvar-configuracoes', 'somente-consulta', 'nome-restaurante',
-        'taxa-servico', 'taxa-servico-ativa', 'imprimir-comanda', 'comanda-unica', 'imprimir-comprovante',
-    ]);
-    Object.assign(admin.elementos['form-configuracoes'], {
-        nome: admin.elementos['nome-restaurante'],
-        taxa: admin.elementos['taxa-servico'],
-        imprimir: admin.elementos['imprimir-comanda'],
-        botao: admin.elementos['salvar-configuracoes'],
-    });
-    admin.elementos['nome-restaurante'].value = 'Casa';
-    admin.elementos['taxa-servico'].value = '101';
-    let configuracaoEnviada;
+    // CAIXA agora também edita: o formulário não é mais bloqueado.
+    const caixa = montar({ nome: 'Casa', taxa: '12', codigo: 'caixa1', senha: 'senha-segura' });
+    const enviadasCaixa = [];
+    await inicializarConfiguracoes({ documento: caixa, api: apiCom(enviadasCaixa) });
+    assert.equal(caixa.elementos['form-configuracoes'].hidden, false);
+    assert.equal(caixa.elementos['nome-restaurante'].disabled, false);
+    caixa.elementos['taxa-servico'].value = '12';
+    await caixa.elementos['form-configuracoes'].listeners.submit({ preventDefault() {} });
+    assert.equal(enviadasCaixa.length, 1);
+    assert.equal(enviadasCaixa[0].codigoUsuario, 'caixa1');
+    assert.equal(enviadasCaixa[0].senha, 'senha-segura');
+    assert.equal(caixa.elementos['sucesso-configuracoes'].hidden, false);
+    assert.equal(caixa.elementos['senha-autorizacao'].value, '', 'a senha é limpa depois de enviar');
+
+    // Sem código/senha: não envia nada.
+    const semSenha = montar({ nome: 'Casa', taxa: '12', codigo: 'caixa1', senha: '' });
+    const enviadasSemSenha = [];
+    await inicializarConfiguracoes({ documento: semSenha, api: apiCom(enviadasSemSenha) });
+    semSenha.elementos['taxa-servico'].value = '12';
+    await semSenha.elementos['form-configuracoes'].listeners.submit({ preventDefault() {} });
+    assert.equal(enviadasSemSenha.length, 0);
+    assert.match(semSenha.elementos['erro-configuracoes'].textContent, /código e a senha/);
+
+    // Senha incorreta: mostra o erro, não mostra sucesso e limpa a senha.
+    const senhaErrada = montar({ nome: 'Casa', taxa: '12', codigo: 'caixa1', senha: 'errada' });
     await inicializarConfiguracoes({
-        perfil: 'ADMIN',
-        documento: admin,
+        documento: senhaErrada,
         api: {
-            obter: async () => ({
-                nomeRestaurante: 'Casa',
-                taxaServicoPercentual: 10,
-                taxaServicoAtiva: true,
-                comandaUnica: true,
-            }),
-            atualizar: async (valor) => { configuracaoEnviada = valor; return valor; },
+            obter: async () => ({ nomeRestaurante: 'Casa', taxaServicoPercentual: 10 }),
+            atualizar: async () => {
+                throw Object.assign(new Error('CREDENCIAIS_INVALIDAS'),
+                    { codigo: 'CREDENCIAIS_INVALIDAS', status: 401 });
+            },
         },
     });
+    senhaErrada.elementos['taxa-servico'].value = '12';
+    senhaErrada.elementos['senha-autorizacao'].value = 'errada';
+    await senhaErrada.elementos['form-configuracoes'].listeners.submit({ preventDefault() {} });
+    assert.match(senhaErrada.elementos['erro-configuracoes'].textContent, /Código\/senha incorretos/);
+    assert.equal(senhaErrada.elementos['sucesso-configuracoes'].hidden, true);
+    assert.equal(senhaErrada.elementos['senha-autorizacao'].value, '');
+
+    // ADMIN: taxa inválida é barrada antes do envio; depois, envia tudo.
+    const admin = montar({ nome: 'Casa', taxa: '101', codigo: 'admin', senha: 'senha-admin' });
+    const enviadasAdmin = [];
+    await inicializarConfiguracoes({ documento: admin, api: apiCom(enviadasAdmin) });
     admin.elementos['taxa-servico'].value = '101';
     await admin.elementos['form-configuracoes'].listeners.submit({ preventDefault() {} });
-    assert.equal(configuracaoEnviada, undefined);
+    assert.equal(enviadasAdmin.length, 0);
     assert.match(admin.elementos['erro-configuracoes'].textContent, /entre 0 e 100/);
+
     admin.elementos['taxa-servico'].value = '15';
+    admin.elementos['senha-autorizacao'].value = 'senha-admin';
     assert.equal(admin.elementos['taxa-servico-ativa'].checked, true);
     assert.equal(admin.elementos['comanda-unica'].checked, true);
     admin.elementos['taxa-servico-ativa'].checked = false;
@@ -546,15 +567,16 @@ test('permite consulta à CAIXA, restringe alteração e valida taxa de serviço
     admin.elementos['comanda-unica'].checked = false;
     admin.elementos['imprimir-comprovante'].checked = true;
     await admin.elementos['form-configuracoes'].listeners.submit({ preventDefault() {} });
-    assert.deepEqual(configuracaoEnviada, {
+    assert.deepEqual(enviadasAdmin, [{
         nomeRestaurante: 'Casa',
         taxaServicoPercentual: 15,
         taxaServicoAtiva: false,
         imprimirComandaAoAceitar: true,
         comandaUnica: false,
         imprimirComprovanteAoFechar: true,
-    });
-    assert.equal(alteracoes, 0);
+        codigoUsuario: 'admin',
+        senha: 'senha-admin',
+    }]);
 });
 
 test('aceita perfis ADMIN e CAIXA nas páginas restritas', () => {
@@ -708,6 +730,7 @@ test('mostra o horário da comanda e lista as comandas da data escolhida', async
         numeroMesa: 3,
         nomeGarcom: 'Ana',
         criadaEm: '2026-11-10T12:52:00',
+        statusPedido: 'pago',
         itens: [{ itemId: 1, nome: 'Pudim', quantidade: 1, status: 'aguardando' }],
     };
     const datas = [];
@@ -729,15 +752,52 @@ test('mostra o horário da comanda e lista as comandas da data escolhida', async
     assert.deepEqual(datas, ['2026-11-10']);
     const linha = documento.elementos['lista-comandas'].children[0];
     assert.equal(linha.children[0].textContent, '5');
-    linha.children[4].children[0].listeners.click();
+    assert.equal(linha.children[4].children[0].textContent, 'Pago');
+    linha.children[5].children[0].listeners.click();
     documento.elementos['imprimir-comanda'].listeners.click();
     assert.equal(impressoes, 1);
     assert.equal(documento.elementos['baixar-comanda'].disabled, false);
 
     renderizarComanda(comanda, documento);
-    const detalhes = documento.elementos['visualizacao-comanda'].children[1].children;
+    const detalhes = documento.elementos['visualizacao-comanda'].children[2].children;
     assert.equal(detalhes[4].textContent, 'Horário');
     assert.match(detalhes[5].textContent, /10\/11\/2026.*12:52/);
+});
+
+test('avisa na comanda se o pedido já foi pago, não foi pago ou foi cancelado', () => {
+    assert.deepEqual(descreverPagamento('pago'), {
+        texto: 'Pago', aviso: 'Este pedido já foi pago.', classe: 'success',
+    });
+    assert.equal(descreverPagamento('PAGO').texto, 'Pago');
+    assert.equal(descreverPagamento('cancelado').aviso, 'Este pedido foi cancelado.');
+    for (const status of ['aguardando', 'em_preparo', 'pronto']) {
+        assert.deepEqual(descreverPagamento(status), {
+            texto: 'Não pago', aviso: 'Este pedido ainda não foi pago.', classe: 'warning',
+        });
+    }
+    assert.equal(descreverPagamento(undefined), null);
+
+    const base = { pedidoId: 9, numeroMesa: 2, nomeGarcom: 'Ana', criadaEm: '2026-11-10T12:52:00', itens: [] };
+    const exibir = (extra) => {
+        const documento = documentoFalso(['visualizacao-comanda']);
+        renderizarComanda({ ...base, ...extra }, documento);
+        return documento.elementos['visualizacao-comanda'].children;
+    };
+
+    const pago = exibir({ statusPedido: 'pago' });
+    assert.equal(pago.length, 4);
+    assert.equal(pago[1].textContent, 'Este pedido já foi pago.');
+    assert.match(pago[1].className, /alert-success/);
+
+    const naoPago = exibir({ statusPedido: 'em_preparo' });
+    assert.equal(naoPago[1].textContent, 'Este pedido ainda não foi pago.');
+    assert.match(naoPago[1].className, /alert-warning/);
+
+    const cancelado = exibir({ statusPedido: 'cancelado' });
+    assert.equal(cancelado[1].textContent, 'Este pedido foi cancelado.');
+
+    // Resposta sem o campo (backend antigo): não inventa aviso.
+    assert.equal(exibir({}).length, 3);
 });
 
 test('cozinha imprime só os itens recebidos e permite reimprimir a última comanda', async () => {

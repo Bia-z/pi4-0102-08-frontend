@@ -10,15 +10,15 @@ export function validarTaxaServico(valor) {
 }
 
 export async function inicializarConfiguracoes({
-    perfil,
-    documento = document,
-    api = { obter: obterConfiguracaoCaixa, atualizar: atualizarConfiguracaoCaixa },
-} = {}) {
+                                                   documento = document,
+                                                   api = { obter: obterConfiguracaoCaixa, atualizar: atualizarConfiguracaoCaixa },
+                                               } = {}) {
     const form = documento.getElementById('form-configuracoes');
     const erro = documento.getElementById('erro-configuracoes');
     const sucesso = documento.getElementById('sucesso-configuracoes');
     const botao = documento.getElementById('salvar-configuracoes');
-    const admin = String(perfil).toUpperCase() === 'ADMIN';
+    const campoCodigo = documento.getElementById('codigo-usuario');
+    const campoSenha = documento.getElementById('senha-autorizacao');
     form.hidden = true;
     try {
         const dados = await api.obter();
@@ -29,12 +29,7 @@ export async function inicializarConfiguracoes({
         documento.getElementById('imprimir-comanda').checked = Boolean(config.imprimirComandaAoAceitar);
         documento.getElementById('comanda-unica').checked = config.comandaUnica !== false;
         documento.getElementById('imprimir-comprovante').checked = Boolean(config.imprimirComprovanteAoFechar);
-        for (const campo of form.querySelectorAll('input, button')) campo.disabled = !admin;
         form.hidden = false;
-        if (!admin) {
-            documento.getElementById('somente-consulta').hidden = false;
-            return;
-        }
     } catch (falha) {
         mostrarErro(erro, falha);
         return;
@@ -49,6 +44,14 @@ export async function inicializarConfiguracoes({
             mostrarErro(erro, { codigo: 'TAXA_SERVICO_INVALIDA' });
             return;
         }
+        const codigoUsuario = campoCodigo.value.trim();
+        const senha = campoSenha.value;
+        if (!codigoUsuario || !senha) {
+            mostrarErro(erro, {
+                message: 'Informe o código e a senha da pessoa que está autorizando a alteração.',
+            });
+            return;
+        }
         botao.disabled = true;
         try {
             const atualizada = await api.atualizar({
@@ -58,6 +61,8 @@ export async function inicializarConfiguracoes({
                 imprimirComandaAoAceitar: documento.getElementById('imprimir-comanda').checked,
                 comandaUnica: documento.getElementById('comanda-unica').checked,
                 imprimirComprovanteAoFechar: documento.getElementById('imprimir-comprovante').checked,
+                codigoUsuario,
+                senha,
             });
             sucesso.textContent = 'Configurações salvas.';
             sucesso.hidden = false;
@@ -67,6 +72,7 @@ export async function inicializarConfiguracoes({
         } catch (falha) {
             mostrarErro(erro, falha);
         } finally {
+            campoSenha.value = '';
             botao.disabled = false;
         }
     });
