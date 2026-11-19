@@ -43,7 +43,6 @@ export async function iniciarComandasCozinha({
         renderizarComanda(comanda, documento);
         reimprimir.disabled = false;
         status.textContent = `Comanda do pedido ${comanda.pedidoId ?? evento.pedidoId} recebida.`;
-        imprimir();
     };
 
     const cliente = await conectar({

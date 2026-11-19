@@ -800,12 +800,13 @@ test('avisa na comanda se o pedido já foi pago, não foi pago ou foi cancelado'
     assert.equal(exibir({}).length, 3);
 });
 
-test('cozinha imprime só os itens recebidos e permite reimprimir a última comanda', async () => {
+test('cozinha exibe só os itens recebidos e só imprime quando clicam em imprimir', async () => {
     const documento = documentoFalso(['status-comandas', 'reimprimir-comanda', 'visualizacao-comanda']);
     const windowOriginal = globalThis.window;
     globalThis.window = { addEventListener() {} };
     let aoAtualizar;
     let impressoes = 0;
+    let impressoesAoReceber = null;
     let consultas = 0;
     try {
         await iniciarComandasCozinha({
@@ -822,6 +823,7 @@ test('cozinha imprime só os itens recebidos e permite reimprimir a última coma
             criadaEm: '2026-11-10T13:00:00',
             itens: [{ itemId: 4, nome: 'Suco', quantidade: 1, status: 'em_preparo' }],
         });
+        impressoesAoReceber = impressoes;
         documento.elementos['reimprimir-comanda'].listeners.click();
     } finally {
         globalThis.window = windowOriginal;
@@ -831,7 +833,8 @@ test('cozinha imprime só os itens recebidos e permite reimprimir a última coma
     assert.equal(consultas, 0);
     assert.equal(corpoTabela.children.length, 1);
     assert.equal(documento.elementos['reimprimir-comanda'].disabled, false);
-    assert.equal(impressoes, 2);
+    assert.equal(impressoesAoReceber, 0);
+    assert.equal(impressoes, 1);
 });
 
 test('imprime documento com título e linhas na área de impressão', () => {
