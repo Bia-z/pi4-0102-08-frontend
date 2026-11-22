@@ -72,17 +72,33 @@
         const carregarMapa = () => carregarMapaMesas({ permitirFechamento: true });
         inicializarMapaMesas({ permitirFechamento: true });
         const status = document.getElementById('status-mesas-tempo-real');
+        let cliente = null;
 
-        try {
-            const cliente = await conectarAtualizacoesMesas({
-                aoConectar: () => { status.textContent = 'Atualizações em tempo real conectadas.'; },
-                aoAtualizar: carregarMapa,
-                aoErro: (erro) => { status.textContent = `Atualizações em tempo real indisponíveis: ${erro.message}`; },
-            });
-            window.addEventListener('pagehide', () => cliente.deactivate());
-        } catch (erro) {
-            status.textContent = `Atualizações em tempo real indisponíveis: ${erro.message}`;
-        }
+        const conectar = async () => {
+            try {
+                cliente = await conectarAtualizacoesMesas({
+                    aoConectar: () => { status.textContent = 'Atualizações em tempo real conectadas.'; },
+                    aoAtualizar: carregarMapa,
+                    aoErro: (erro) => { status.textContent = `Atualizações em tempo real indisponíveis: ${erro.message}`; },
+                });
+            } catch (erro) {
+                status.textContent = `Atualizações em tempo real indisponíveis: ${erro.message}`;
+            }
+        };
+
+        window.addEventListener('pagehide', () => {
+            cliente?.deactivate();
+            cliente = null;
+        });
+        // Ao voltar por "← Voltar", o navegador pode devolver o mapa congelado do cache:
+        // recarrega as mesas e reabre a conexão em tempo real.
+        window.addEventListener('pageshow', (evento) => {
+            if (!evento.persisted) return;
+            carregarMapa();
+            conectar();
+        });
+
+        await conectar();
     }
 </script>
 </body>
